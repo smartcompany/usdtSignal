@@ -50,22 +50,25 @@ class ApiService {
     _hourlyMergedBodyFingerprint = null;
   }
 
-  static int _fnv1a64(List<int> bytes) {
-    const int prime = 1099511628211;
-    var hash = 0xcbf29ce484222325;
+  /// 응답 바이트 지문 (dart2js: 53비트 초과 리터럴·곱셈 금지).
+  /// 곱셈이 항상 작은 정수 범위에 머물도록 30비트로만 굴립니다.
+  static int _digestBytesJsSafe(List<int> bytes) {
+    var h = bytes.length ^ 0x13579BDF;
     for (var i = 0; i < bytes.length; i++) {
-      hash ^= bytes[i];
-      hash = (hash * prime) & 0xFFFFFFFFFFFFFFFF;
+      h = ((h * 31) + (bytes[i] & 0xFF)) & 0x3FFFFFFF;
     }
-    return hash;
+    for (var j = 1; j <= 8 && j <= bytes.length; j++) {
+      h = ((h * 31) + (bytes[bytes.length - j] & 0xFF)) & 0x3FFFFFFF;
+    }
+    return h;
   }
 
   static int _hourlyPayloadFingerprint(List<int> usdt, List<int> fx) {
     return Object.hash(
       usdt.length,
       fx.length,
-      _fnv1a64(usdt),
-      _fnv1a64(fx),
+      _digestBytesJsSafe(usdt),
+      _digestBytesJsSafe(fx),
     );
   }
 
