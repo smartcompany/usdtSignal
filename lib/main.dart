@@ -33,6 +33,33 @@ import 'dialogs/purchase_confirmation_dialog.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'theme/app_theme.dart';
 
+enum MainChartGranularity { daily, hourly }
+
+/// 일간 화면 복귀 시 복원용 (시간 봉에서 덮어쓴 차트·수익률)
+class _MainDailyChartSnapshot {
+  final List<ChartData> exchangeRates;
+  final List<ChartData> kimchiPremium;
+  final Map<DateTime, USDTChartData> usdtMap;
+  final List<USDTChartData> usdtChartData;
+  final double kimchiMin;
+  final double kimchiMax;
+  final SimulationYieldData? aiYield;
+  final SimulationYieldData? gimchiYield;
+  final ChartOnlyPageModel? chartOnlyModel;
+
+  _MainDailyChartSnapshot({
+    required this.exchangeRates,
+    required this.kimchiPremium,
+    required this.usdtMap,
+    required this.usdtChartData,
+    required this.kimchiMin,
+    required this.kimchiMax,
+    this.aiYield,
+    this.gimchiYield,
+    this.chartOnlyModel,
+  });
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (!kIsWeb) {
@@ -268,12 +295,27 @@ class _MyHomePageState extends State<MyHomePage>
   // 수익률 표시 모드 (true: 연수익률, false: 총 수익률) - AI와 김프 동시 전환
   bool _showAnnualYield = false;
 
+  MainChartGranularity _chartGranularity = MainChartGranularity.daily;
+  _MainDailyChartSnapshot? _dailyChartsSnapshot;
+  bool _hourlyChartsLoading = false;
+  StreamSubscription<MergedHourlyChartData>? _hourlyMergedUpdatedSub;
+
+  /// 안내 문구에 쓰는 일수(서버 구간과 다를 수 있음).
+  static const int _kHourlyIntroWindowDays = 90;
+
+  /// null: 아직 prefs 로드 전. `false`이면 «NEW» 표시 후 최초 탭 시 안내.
+  bool? _hourlyIntroSeen;
+
   final PageController _infoPageController = PageController();
   int _infoPageIndex = 0;
   FundingRateInfo? _xrpFundingRate;
   bool _isFundingRateLoading = false;
   DateTime? _fundingRateFetchedAt;
   String _fundingRateSource = 'binance';
+
+  /// 상단 USDT/FX/김프 표시만 시세에 맞춤 (차트 데이터는 시간봉 스냅샷 유지).
+  double? _headlineSpotUsdt;
+  double? _headlineSpotFx;
 
   @override
   void initState() {
@@ -291,6 +333,23 @@ class _MyHomePageState extends State<MyHomePage>
     _initializeDataPipelines();
     _startPolling();
     _loadLatestNews(); // 별도로 비동기 호출
+
+    _hourlyMergedUpdatedSub = ApiService.shared.hourlyMergedUpdated.listen((
+      merged,
+    ) {
+      if (!mounted) return;
+      if (_chartGranularity != MainChartGranularity.hourly) return;
+      setState(() {
+        _applyHourlyMergedChartData(merged);
+      });
+      unawaited(_recalculateHourlyGimchiYieldOnly());
+    });
+
+    unawaited(() async {
+      final seen = await loadHourlyGranularityIntroSeen();
+      if (!mounted) return;
+      setState(() => _hourlyIntroSeen = seen);
+    }());
 
     // 앱 시작 이벤트 로깅
     if (!kIsWeb) {
@@ -544,28 +603,42 @@ class _MyHomePageState extends State<MyHomePage>
 
   void _startPolling() {
     Timer.periodic(Duration(seconds: 3), (timer) async {
-      if (!mounted) return; // 위젯이 마운트되지 않은 경우 early return
+      if (!mounted) return;
+
+      final usdt = await ApiService.shared.fetchLatestUSDTData();
+      final exchangeRate = await ApiService.shared.fetchLatestExchangeRate();
+
+      if (!mounted) return;
+
+      if (_chartGranularity == MainChartGranularity.hourly) {
+        setState(() {
+          if (usdt != null) {
+            _headlineSpotUsdt = usdt;
+          }
+          if (exchangeRate != null) {
+            _headlineSpotFx = exchangeRate;
+          }
+        });
+        return;
+      }
+
       if (usdtChartData.isEmpty || usdtMap.isEmpty || exchangeRates.isEmpty) {
         return;
       }
 
-      final usdt = await ApiService.shared.fetchLatestUSDTData();
-      if (usdt != null && usdtChartData.isNotEmpty) {
-        setState(() {
+      setState(() {
+        if (usdt != null && usdtChartData.isNotEmpty) {
           usdtChartData.safeLast?.close = usdt;
-          final key = usdtChartData.safeLast?.time; // 시간 문자열로 변환
-          if (usdtMap.containsKey(key)) {
+          final key = usdtChartData.safeLast?.time;
+          if (key != null && usdtMap.containsKey(key)) {
             usdtMap[key]?.close = usdt;
           }
-        });
-      }
-
-      final exchangeRate = await ApiService.shared.fetchLatestExchangeRate();
-      if (exchangeRate != null) {
-        exchangeRates.safeLast?.value = exchangeRate;
-      }
-
-      setState(() {
+          _headlineSpotUsdt = usdt;
+        }
+        if (exchangeRate != null) {
+          exchangeRates.safeLast?.value = exchangeRate;
+          _headlineSpotFx = exchangeRate;
+        }
         kimchiPremium.safeLast?.value = gimchiPremium(
           usdtChartData.safeLast?.close ?? 0,
           exchangeRates.safeLast?.value ?? 0,
@@ -687,6 +760,7 @@ class _MyHomePageState extends State<MyHomePage>
     WidgetsBinding.instance.removeObserver(this);
     _infoPageController.dispose();
     _purchaseSubscription?.cancel();
+    _hourlyMergedUpdatedSub?.cancel();
     _disposeAds();
     super.dispose();
   }
@@ -777,6 +851,7 @@ class _MyHomePageState extends State<MyHomePage>
     });
 
     try {
+      ApiService.shared.clearHourlyMergedMemoryCache();
       // Settings 로드 후 다른 API들을 동시에 진행
       final results = await Future.wait([
         ApiService.shared.fetchExchangeRateData(),
@@ -810,6 +885,8 @@ class _MyHomePageState extends State<MyHomePage>
         usdtChartData.safeLast?.close ?? 0,
         exchangeRates.safeLast?.value ?? 0,
       );
+      _headlineSpotUsdt = usdtChartData.safeLast?.close;
+      _headlineSpotFx = exchangeRates.safeLast?.value;
 
       // 메인 화면 로딩 완료 후 백그라운드에서 전략 데이터 로딩
       _loadStrategyInBackground();
@@ -825,6 +902,9 @@ class _MyHomePageState extends State<MyHomePage>
       });
 
       unawaited(_loadXrpFundingRate(force: true));
+      if (_chartGranularity == MainChartGranularity.daily && mounted) {
+        _persistDailyChartsSnapshotIfDaily();
+      }
     } catch (e) {
       setState(() {
         _loading = false;
@@ -833,6 +913,434 @@ class _MyHomePageState extends State<MyHomePage>
         _showRetryDialog();
       }
     }
+  }
+
+  Map<DateTime, USDTChartData> _deepCopyUsdtMap(
+    Map<DateTime, USDTChartData> src,
+  ) {
+    return Map.fromEntries(
+      src.entries.map(
+        (e) => MapEntry(
+          e.key,
+          USDTChartData(
+            e.key,
+            e.value.open,
+            e.value.close,
+            e.value.high,
+            e.value.low,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _persistDailyChartsSnapshotIfDaily() {
+    if (_chartGranularity != MainChartGranularity.daily) return;
+    if (!mounted) return;
+    _dailyChartsSnapshot = _MainDailyChartSnapshot(
+      exchangeRates:
+          exchangeRates.map((c) => ChartData(c.time, c.value)).toList(),
+      kimchiPremium:
+          kimchiPremium.map((c) => ChartData(c.time, c.value)).toList(),
+      usdtMap: _deepCopyUsdtMap(usdtMap),
+      usdtChartData:
+          usdtChartData
+              .map((u) => USDTChartData(u.time, u.open, u.close, u.high, u.low))
+              .toList(),
+      kimchiMin: kimchiMin,
+      kimchiMax: kimchiMax,
+      aiYield: aiYieldData,
+      gimchiYield: gimchiYieldData,
+      chartOnlyModel: chartOnlyPageModel,
+    );
+  }
+
+  ChartOnlyPageModel _buildChartModelFromCurrentCharts() => ChartOnlyPageModel(
+    exchangeRates: exchangeRates,
+    kimchiPremium: kimchiPremium,
+    strategyList: strategyList,
+    usdtMap: usdtMap,
+    usdtChartData: [...usdtChartData],
+    kimchiMin: kimchiMin,
+    kimchiMax: kimchiMax,
+    premiumTrends: premiumTrends,
+  );
+
+  void _applyHourlyMergedChartData(MergedHourlyChartData merged) {
+    exchangeRates =
+        merged.exchangeRatesAligned
+            .map((c) => ChartData(c.time, c.value))
+            .toList();
+    kimchiPremium =
+        merged.kimchiPremium.map((c) => ChartData(c.time, c.value)).toList();
+    usdtMap = _deepCopyUsdtMap(merged.usdtMap);
+    final sortedHours =
+        merged.usdtMap.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
+    usdtChartData = sortedHours.map((e) => e.value).toList();
+    kimchiMin = kimchiPremium
+        .map((e) => e.value)
+        .reduce((a, b) => a < b ? a : b);
+    kimchiMax = kimchiPremium
+        .map((e) => e.value)
+        .reduce((a, b) => a > b ? a : b);
+  }
+
+  Future<void> _recalculateHourlyGimchiYieldOnly() async {
+    if (!mounted ||
+        _chartGranularity != MainChartGranularity.hourly ||
+        usdtMap.isEmpty) {
+      return;
+    }
+    final simInitial =
+        await SimulationCondition.instance.getInitialCapitalKrw();
+    if (!mounted) return;
+
+    double? buyFee;
+    double? sellFee;
+    final settings = ApiService.shared.settings;
+    if (settings != null) {
+      final upbitFees = settings['upbit_fees'] as Map<String, dynamic>?;
+      if (upbitFees != null) {
+        buyFee = (upbitFees['buy_fee'] as num?)?.toDouble();
+        sellFee = (upbitFees['sell_fee'] as num?)?.toDouble();
+      }
+    }
+
+    final gy = SimulationModel.getYieldForGimchiSimulation(
+      exchangeRates,
+      strategyList,
+      usdtMap,
+      premiumTrends,
+      initialKRW: simInitial,
+      buyFee: buyFee,
+      sellFee: sellFee,
+    );
+    if (!mounted) return;
+    setState(() {
+      gimchiYieldData = gy;
+      aiYieldData = null;
+      chartOnlyPageModel = _buildChartModelFromCurrentCharts();
+    });
+  }
+
+  /// 하루↔시간 전환 시 김프 시뮬 일정을 «전체 일정»(제한 없음)으로 맞춥니다.
+  Future<void> _resetKimchiSimulationDateRangeToFull() async {
+    await SimulationCondition.instance.saveKimchiDateRange(
+      startDate: null,
+      endDate: null,
+    );
+  }
+
+  /// 시간 단위 최초 전환 시 안내 다이얼로그. 이미 본 경우 바로 `true`.
+  Future<bool> _showHourlyGranularityIntroOnceIfNeeded() async {
+    final fromPrefs = await loadHourlyGranularityIntroSeen();
+    if (!mounted) return false;
+    if (fromPrefs) {
+      setState(() => _hourlyIntroSeen = true);
+      return true;
+    }
+    setState(() => _hourlyIntroSeen = false);
+
+    await LiquidGlassDialog.show<void>(
+      context: context,
+      barrierDismissible: false,
+      title: Text(l10n(context).hourlyGranularityIntroTitle),
+      content: SingleChildScrollView(
+        child: Text(
+          l10n(context).hourlyGranularityIntroBody(_kHourlyIntroWindowDays),
+          textAlign: TextAlign.start,
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n(context).confirm),
+        ),
+      ],
+    );
+    if (!mounted) return false;
+    await saveHourlyGranularityIntroSeen(true);
+    setState(() => _hourlyIntroSeen = true);
+    return true;
+  }
+
+  Future<void> _switchChartGranularity(MainChartGranularity g) async {
+    if (_chartGranularity == g) return;
+    if (_loading) return;
+
+    if (g == MainChartGranularity.hourly) {
+      if (!await _showHourlyGranularityIntroOnceIfNeeded()) {
+        return;
+      }
+      if (!mounted) return;
+      final fastPath = ApiService.shared.hourlyMergedMemoryCacheReady;
+      if (!fastPath) {
+        setState(() {
+          _hourlyChartsLoading = true;
+        });
+      }
+      final mergedFuture = ApiService.shared.fetchMergedHourlyChartData();
+      final usdtFut = ApiService.shared.fetchLatestUSDTData();
+      final fxFut = ApiService.shared.fetchLatestExchangeRate();
+      final merged = await mergedFuture;
+
+      if (!mounted) return;
+      if (merged == null || merged.usdtMap.isEmpty) {
+        setState(() {
+          _hourlyChartsLoading = false;
+        });
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.hourlyChartLoadFailed),
+          ),
+        );
+        return;
+      }
+
+      await _resetKimchiSimulationDateRangeToFull();
+
+      setState(() {
+        _applyHourlyMergedChartData(merged);
+        _chartGranularity = MainChartGranularity.hourly;
+        _hourlyChartsLoading = false;
+        aiYieldData = null;
+        _selectedStrategyTabIndex = 1;
+      });
+      unawaited(() async {
+        final spotUsdt = await usdtFut;
+        final spotFx = await fxFut;
+        if (!mounted) return;
+        setState(() {
+          if (spotUsdt != null) {
+            _headlineSpotUsdt = spotUsdt;
+          }
+          if (spotFx != null) {
+            _headlineSpotFx = spotFx;
+          }
+        });
+      }());
+      await _recalculateHourlyGimchiYieldOnly();
+      return;
+    }
+
+    await _restoreDailyChartsFromSnapshot();
+  }
+
+  Future<void> _restoreDailyChartsFromSnapshot() async {
+    await _resetKimchiSimulationDateRangeToFull();
+
+    final snap = _dailyChartsSnapshot;
+    if (snap == null) {
+      await _loadAllApis();
+      return;
+    }
+
+    setState(() {
+      _chartGranularity = MainChartGranularity.daily;
+      exchangeRates =
+          snap.exchangeRates.map((c) => ChartData(c.time, c.value)).toList();
+      kimchiPremium =
+          snap.kimchiPremium.map((c) => ChartData(c.time, c.value)).toList();
+      usdtMap = _deepCopyUsdtMap(snap.usdtMap);
+      final sorted =
+          snap.usdtMap.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
+      usdtChartData = sorted.map((e) => e.value).toList();
+      kimchiMin = snap.kimchiMin;
+      kimchiMax = snap.kimchiMax;
+      _headlineSpotUsdt = usdtChartData.safeLast?.close;
+      _headlineSpotFx = exchangeRates.safeLast?.value;
+    });
+
+    await _reloadDailyYieldsAfterChartRestore();
+  }
+
+  Future<void> _reloadDailyYieldsAfterChartRestore() async {
+    if (!mounted || _chartGranularity != MainChartGranularity.daily) {
+      return;
+    }
+
+    final simInitial =
+        await SimulationCondition.instance.getInitialCapitalKrw();
+    if (!mounted) return;
+
+    double? buyFee;
+    double? sellFee;
+    final settings = ApiService.shared.settings;
+    if (settings != null) {
+      final upbitFees = settings['upbit_fees'] as Map<String, dynamic>?;
+      if (upbitFees != null) {
+        buyFee = (upbitFees['buy_fee'] as num?)?.toDouble();
+        sellFee = (upbitFees['sell_fee'] as num?)?.toDouble();
+      }
+    }
+
+    SimulationYieldData? newAiYield;
+    if (strategyList.isNotEmpty) {
+      newAiYield = SimulationModel.getYieldForAISimulation(
+        exchangeRates,
+        strategyList,
+        usdtMap,
+        initialKRW: simInitial,
+        buyFee: buyFee,
+        sellFee: sellFee,
+      );
+    }
+    final newGimchiYield = SimulationModel.getYieldForGimchiSimulation(
+      exchangeRates,
+      strategyList,
+      usdtMap,
+      premiumTrends,
+      initialKRW: simInitial,
+      buyFee: buyFee,
+      sellFee: sellFee,
+    );
+    final newChartModel = ChartOnlyPageModel(
+      exchangeRates: exchangeRates,
+      kimchiPremium: kimchiPremium,
+      strategyList: strategyList,
+      usdtMap: usdtMap,
+      usdtChartData: [...usdtChartData],
+      kimchiMin: kimchiMin,
+      kimchiMax: kimchiMax,
+      premiumTrends: premiumTrends,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      aiYieldData = newAiYield;
+      gimchiYieldData = newGimchiYield;
+      chartOnlyPageModel = newChartModel;
+    });
+    _persistDailyChartsSnapshotIfDaily();
+  }
+
+  bool _canOpenSimulation(SimulationType type) {
+    if (type == SimulationType.ai) {
+      return _chartGranularity == MainChartGranularity.daily &&
+          latestStrategy != null;
+    }
+    return usdtMap.isNotEmpty;
+  }
+
+  Widget _buildChartGranularityBar() {
+    final cs = Theme.of(context).colorScheme;
+    final l10 = l10n(context);
+    final isDaily = _chartGranularity == MainChartGranularity.daily;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.65),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: cs.outline.withValues(alpha: 0.35)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(6, 10, 14, 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ChoiceChip(
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+              label: Text(
+                l10.chartGranularityDaily,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              selected: isDaily,
+              onSelected: (_) {
+                if (!_hourlyChartsLoading) {
+                  unawaited(
+                    _switchChartGranularity(MainChartGranularity.daily),
+                  );
+                }
+              },
+            ),
+            const SizedBox(width: 4),
+            Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                ChoiceChip(
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                  label: Text(
+                    l10.chartGranularityHourly,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  selected: !isDaily,
+                  onSelected: (_) {
+                    if (!_hourlyChartsLoading) {
+                      unawaited(
+                        _switchChartGranularity(MainChartGranularity.hourly),
+                      );
+                    }
+                  },
+                ),
+                if (_hourlyIntroSeen == false)
+                  Positioned(
+                    top: -10,
+                    right: -10,
+                    child: IgnorePointer(
+                      child: Semantics(
+                        label: l10.hourlyGranularityNewBadgeSemanticLabel,
+                        child: Tooltip(
+                          message: l10.hourlyGranularityNewBadgeSemanticLabel,
+                          child: Icon(
+                            Icons.fiber_new_outlined,
+                            size: 30,
+                            color: Colors.red.shade600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppBarOnboardingHelp() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primaryContainer,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.35),
+          width: 1,
+        ),
+      ),
+      child: InkWell(
+        onTap: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder:
+                  (context) => OnboardingPage(
+                    onFinish: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+              fullscreenDialog: true,
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(6.0),
+          child: Icon(
+            Icons.help_outline,
+            color: Theme.of(context).colorScheme.primary,
+            size: 20,
+          ),
+        ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+    );
   }
 
   void _loadRewardedAd() async {
@@ -1057,21 +1565,23 @@ class _MyHomePageState extends State<MyHomePage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildYieldInfoTile(
-            context,
-            title:
-                _showAnnualYield
-                    ? _getAnnualYieldTitle(context, isAi: true)
-                    : l10n(context).aiReturn,
-            valueText: aiReturn,
-            detailText: aiDays,
-            onTap: () {
-              setState(() {
-                _showAnnualYield = !_showAnnualYield;
-              });
-            },
-          ),
-          const SizedBox(height: 8),
+          if (_chartGranularity == MainChartGranularity.daily) ...[
+            _buildYieldInfoTile(
+              context,
+              title:
+                  _showAnnualYield
+                      ? _getAnnualYieldTitle(context, isAi: true)
+                      : l10n(context).aiReturn,
+              valueText: aiReturn,
+              detailText: aiDays,
+              onTap: () {
+                setState(() {
+                  _showAnnualYield = !_showAnnualYield;
+                });
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
           _buildYieldInfoTile(
             context,
             title:
@@ -1385,8 +1895,9 @@ class _MyHomePageState extends State<MyHomePage>
       final response = await ApiService.shared.fetchStrategyWithKimchiTrends();
 
       if (mounted && response != null) {
-        final newStrategyList =
-            List<StrategyMap>.from(response['strategies'] ?? []);
+        final newStrategyList = List<StrategyMap>.from(
+          response['strategies'] ?? [],
+        );
         final newLatestStrategy =
             newStrategyList.isNotEmpty ? newStrategyList.first : null;
 
@@ -1427,14 +1938,28 @@ class _MyHomePageState extends State<MyHomePage>
             await SimulationCondition.instance.getInitialCapitalKrw();
         if (!mounted) return;
 
-        final newAiYield = SimulationModel.getYieldForAISimulation(
-          exchangeRates,
-          newStrategyList,
-          usdtMap,
-          initialKRW: simInitialKrw,
-          buyFee: buyFee,
-          sellFee: sellFee,
-        );
+        if (_chartGranularity == MainChartGranularity.hourly) {
+          setState(() {
+            strategyList = newStrategyList;
+            latestStrategy = newLatestStrategy;
+            premiumTrends = nextPremiumTrends;
+          });
+          await _recalculateHourlyGimchiYieldOnly();
+          print('전략 데이터 로딩 완료 (시간 차트)');
+          return;
+        }
+
+        SimulationYieldData? newAiYield;
+        if (newStrategyList.isNotEmpty) {
+          newAiYield = SimulationModel.getYieldForAISimulation(
+            exchangeRates,
+            newStrategyList,
+            usdtMap,
+            initialKRW: simInitialKrw,
+            buyFee: buyFee,
+            sellFee: sellFee,
+          );
+        }
 
         final newGimchiYield = SimulationModel.getYieldForGimchiSimulation(
           exchangeRates,
@@ -1451,7 +1976,7 @@ class _MyHomePageState extends State<MyHomePage>
           kimchiPremium: kimchiPremium,
           strategyList: newStrategyList,
           usdtMap: usdtMap,
-          usdtChartData: usdtChartData,
+          usdtChartData: [...usdtChartData],
           kimchiMin: kimchiMin,
           kimchiMax: kimchiMax,
           premiumTrends: nextPremiumTrends,
@@ -1465,11 +1990,14 @@ class _MyHomePageState extends State<MyHomePage>
           gimchiYieldData = newGimchiYield;
           chartOnlyPageModel = newChartModel;
         });
+        _persistDailyChartsSnapshotIfDaily();
 
         print('전략 데이터 로딩 완료');
       }
     } catch (e) {
-      chartOnlyPageModel = null;
+      if (_chartGranularity == MainChartGranularity.daily) {
+        chartOnlyPageModel = null;
+      }
       print('전략 데이터 로딩 실패: $e');
       // 전략 데이터 로딩 실패는 메인 화면에 영향을 주지 않음
     }
@@ -1580,10 +2108,9 @@ class _MyHomePageState extends State<MyHomePage>
                 color: Theme.of(context).colorScheme.surfaceContainerHigh,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .outline
-                      .withValues(alpha: 0.35),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.outline.withValues(alpha: 0.35),
                 ),
               ),
               child: Column(
@@ -1604,10 +2131,9 @@ class _MyHomePageState extends State<MyHomePage>
                 color: Theme.of(context).colorScheme.surfaceContainerHigh,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .outline
-                      .withValues(alpha: 0.35),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.outline.withValues(alpha: 0.35),
                 ),
               ),
               child: Column(
@@ -1644,55 +2170,19 @@ class _MyHomePageState extends State<MyHomePage>
             elevation: 0,
             centerTitle: true,
             leading: !kIsWeb ? _buildChatIcon() : null,
-            title: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  l10n(context).usdt_signal,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
+            title: SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildChartGranularityBar(),
+                    const SizedBox(width: 6),
+                    _buildAppBarOnboardingHelp(),
+                  ],
                 ),
-                Container(
-                  margin: const EdgeInsets.only(left: 8.0),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .outline
-                          .withValues(alpha: 0.35),
-                      width: 1,
-                    ),
-                  ),
-                  child: InkWell(
-                    onTap: () async {
-                      await Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder:
-                              (context) => OnboardingPage(
-                                onFinish: () {
-                                  Navigator.of(context).pop();
-                                },
-                              ),
-                          fullscreenDialog: true,
-                        ),
-                      );
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.all(6.0),
-                      child: Icon(
-                        Icons.help_outline,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 20,
-                      ),
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-              ],
+              ),
             ),
             iconTheme: IconThemeData(
               color: Theme.of(context).colorScheme.onSurface,
@@ -1707,22 +2197,19 @@ class _MyHomePageState extends State<MyHomePage>
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        Theme.of(context)
-                            .colorScheme
-                            .surface
-                            .withValues(alpha: 0.92),
-                        Theme.of(context)
-                            .colorScheme
-                            .surface
-                            .withValues(alpha: 0.75),
+                        Theme.of(
+                          context,
+                        ).colorScheme.surface.withValues(alpha: 0.92),
+                        Theme.of(
+                          context,
+                        ).colorScheme.surface.withValues(alpha: 0.75),
                       ],
                     ),
                     border: Border(
                       bottom: BorderSide(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .outlineVariant
-                            .withValues(alpha: 0.6),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.outlineVariant.withValues(alpha: 0.6),
                         width: 0.5,
                       ),
                     ),
@@ -1739,6 +2226,26 @@ class _MyHomePageState extends State<MyHomePage>
           ),
           body: SafeArea(child: singleChildScrollView),
         ),
+        if (_hourlyChartsLoading)
+          Positioned.fill(
+            child: AbsorbPointer(
+              child: ColoredBox(
+                color: Theme.of(
+                  context,
+                ).colorScheme.scrim.withValues(alpha: 0.32),
+                child: Center(
+                  child: SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         // 전체 화면 뉴스 스플래시 뷰
         if (_showNewsBanner && _latestNews != null)
           NewsSplashView(news: _latestNews!, onDismiss: _dismissNewsBanner),
@@ -1755,7 +2262,8 @@ class _MyHomePageState extends State<MyHomePage>
     String comment = '';
     double exchangeRateValue = exchangeRates.safeLast?.value ?? 0;
 
-    if (_selectedStrategyTabIndex == 0) {
+    if (_chartGranularity != MainChartGranularity.hourly &&
+        _selectedStrategyTabIndex == 0) {
       buyPrice = latestStrategy?['buy_price'] ?? 0;
       sellPrice = latestStrategy?['sell_price'] ?? 0;
     } else {
@@ -1803,9 +2311,7 @@ class _MyHomePageState extends State<MyHomePage>
           decoration: BoxDecoration(
             color: bgColor,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: cs.outline.withValues(alpha: 0.4),
-            ),
+            border: Border.all(color: cs.outline.withValues(alpha: 0.4)),
           ),
           child: Row(
             children: [
@@ -1846,10 +2352,16 @@ class _MyHomePageState extends State<MyHomePage>
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? cs.primaryContainer.withValues(alpha: 0.55) : Colors.transparent,
+          color:
+              isSelected
+                  ? cs.primaryContainer.withValues(alpha: 0.55)
+                  : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? cs.primary.withValues(alpha: 0.35) : Colors.transparent,
+            color:
+                isSelected
+                    ? cs.primary.withValues(alpha: 0.35)
+                    : Colors.transparent,
           ),
         ),
         child: Row(
@@ -1916,7 +2428,11 @@ class _MyHomePageState extends State<MyHomePage>
         },
         child: Padding(
           padding: const EdgeInsets.all(6.0),
-          child: Icon(Icons.support_agent, color: cs.onSecondaryContainer, size: 20),
+          child: Icon(
+            Icons.support_agent,
+            color: cs.onSecondaryContainer,
+            size: 20,
+          ),
         ),
         borderRadius: BorderRadius.circular(16),
       ),
@@ -2014,26 +2530,31 @@ class _MyHomePageState extends State<MyHomePage>
     const usdtAccent = Color(0xFF7EB8FF);
     const rateAccent = Color(0xFF86EFAC);
     const kimchiAccent = Color(0xFFFBBF24);
+
+    final usdtShown = _headlineSpotUsdt ?? todayUsdt?.close;
+    final fxShown = _headlineSpotFx ?? todayRate?.value;
+    final kpShown =
+        usdtShown != null && fxShown != null && fxShown.abs() > 1e-12
+            ? gimchiPremium(usdtShown, fxShown)
+            : todayKimchi?.value;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         InfoItem(
           label: l10n(context).usdt,
-          value: todayUsdt != null ? todayUsdt.close.toStringAsFixed(1) : '-',
+          value: usdtShown != null ? usdtShown.toStringAsFixed(1) : '-',
           color: usdtAccent,
         ),
         InfoItem(
           label: l10n(context).exchangeRate,
-          value: todayRate != null ? todayRate.value.toStringAsFixed(1) : '-',
+          value: fxShown != null ? fxShown.toStringAsFixed(1) : '-',
           color: rateAccent,
         ),
         InfoItem(
           label: l10n(context).gimchiPremiem,
-          value:
-              todayKimchi != null
-                  ? '${todayKimchi.value.toStringAsFixed(2)}%'
-                  : '-',
+          value: kpShown != null ? '${kpShown.toStringAsFixed(2)}%' : '-',
           color: kimchiAccent,
         ),
       ],
@@ -2124,7 +2645,10 @@ class _MyHomePageState extends State<MyHomePage>
           width: isActive ? 8 : 6,
           height: isActive ? 8 : 6,
           decoration: BoxDecoration(
-            color: isActive ? cs.primary : cs.outlineVariant.withValues(alpha: 0.55),
+            color:
+                isActive
+                    ? cs.primary
+                    : cs.outlineVariant.withValues(alpha: 0.55),
             shape: BoxShape.circle,
           ),
         );
@@ -2143,9 +2667,10 @@ class _MyHomePageState extends State<MyHomePage>
         showKimchiPlotBands ? getKimchiPlotBands() : [];
 
     final simulationType =
-        _selectedStrategyTabIndex == 0
-            ? SimulationType.ai
-            : SimulationType.kimchi;
+        _chartGranularity == MainChartGranularity.hourly ||
+                _selectedStrategyTabIndex != 0
+            ? SimulationType.kimchi
+            : SimulationType.ai;
     final nextPoint = SimulationModel.getNextTradingPoint(
       simulationType: simulationType,
       latestStrategy: latestStrategy,
@@ -2168,20 +2693,30 @@ class _MyHomePageState extends State<MyHomePage>
               border: Border.all(color: cs.outline.withValues(alpha: 0.35)),
             ),
             child: SfCartesianChart(
+              key: ValueKey(_chartGranularity),
               plotAreaBackgroundColor: chartSurface,
               plotAreaBorderColor: axisLineColor,
               plotAreaBorderWidth: 0,
               onTooltipRender: (TooltipArgs args) {
-                final clickedPoint =
-                    args.dataPoints?[(args.pointIndex ?? 0) as int];
+                final pi = args.pointIndex;
+                final ix = pi is num ? pi.toInt() : ((pi as int?) ?? 0);
+                final clickedPoint = args.dataPoints?[ix];
+
+                final date =
+                    clickedPoint?.x is DateTime
+                        ? clickedPoint!.x as DateTime
+                        : null;
+                if (date == null) {
+                  return;
+                }
 
                 // Date로 부터 환율 정보를 얻는다.
-                final exchangeRate = getExchangeRate(clickedPoint.x);
+                final exchangeRate = _exchangeRateAtChartPoint(date);
                 // Date로 부터 USDT 정보를 얻는다.
-                final usdtValue = getUsdtValue(clickedPoint.x);
+                final usdtValue = _usdtCloseAtChartPoint(date);
                 // 김치 프리미엄 계산은 USDT 값과 환율을 이용
-                double kimchiPremiumValue =
-                    ((usdtValue - exchangeRate) / exchangeRate * 100);
+                final div = exchangeRate.abs() < 1e-9 ? 1.0 : exchangeRate;
+                final kimchiPremiumValue = ((usdtValue - div) / div * 100);
 
                 // 툴팁 텍스트를 기존 텍스트에 김치 프리미엄 값을 추가
                 args.text =
@@ -2197,8 +2732,14 @@ class _MyHomePageState extends State<MyHomePage>
               margin: const EdgeInsets.all(10),
               primaryXAxis: DateTimeAxis(
                 edgeLabelPlacement: EdgeLabelPlacement.shift,
-                intervalType: DateTimeIntervalType.days,
-                dateFormat: DateFormat.yMd(),
+                intervalType:
+                    _chartGranularity == MainChartGranularity.hourly
+                        ? DateTimeIntervalType.hours
+                        : DateTimeIntervalType.days,
+                dateFormat:
+                    _chartGranularity == MainChartGranularity.hourly
+                        ? DateFormat('M/d HH:mm')
+                        : DateFormat.yMd(),
                 rangePadding: ChartRangePadding.additionalEnd,
                 initialZoomFactor: 0.9,
                 initialZoomPosition: 0.8,
@@ -2227,10 +2768,7 @@ class _MyHomePageState extends State<MyHomePage>
                     axisLine: AxisLine(color: axisLineColor, width: 1),
                     majorGridLines: MajorGridLines(color: gridColor, width: 1),
                     labelStyle: TextStyle(color: axisLabelColor, fontSize: 11),
-                    majorTickLines: MajorTickLines(
-                      size: 2,
-                      color: cs.error,
-                    ),
+                    majorTickLines: MajorTickLines(size: 2, color: cs.error),
                     rangePadding: ChartRangePadding.round,
                     minimum: kimchiMin - 0.5,
                     maximum: kimchiMax + 0.5,
@@ -2255,7 +2793,10 @@ class _MyHomePageState extends State<MyHomePage>
                       ),
                     ),
                     coordinateUnit: CoordinateUnit.point,
-                    x: DateTime.now(),
+                    x:
+                        usdtChartData.isNotEmpty
+                            ? usdtChartData.last.time
+                            : DateTime.now(),
                     y: nextPoint.price,
                   ),
                 if (usdtChartData.isNotEmpty)
@@ -2325,9 +2866,7 @@ class _MyHomePageState extends State<MyHomePage>
             decoration: BoxDecoration(
               color: cs.surfaceContainerHigh,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: cs.outline.withValues(alpha: 0.4),
-              ),
+              border: Border.all(color: cs.outline.withValues(alpha: 0.4)),
             ),
             child: IconButton(
               icon: Icon(Icons.refresh, color: cs.primary),
@@ -2348,9 +2887,7 @@ class _MyHomePageState extends State<MyHomePage>
             decoration: BoxDecoration(
               color: cs.surfaceContainerHigh,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: cs.outline.withValues(alpha: 0.4),
-              ),
+              border: Border.all(color: cs.outline.withValues(alpha: 0.4)),
             ),
             child: IconButton(
               icon:
@@ -2360,15 +2897,10 @@ class _MyHomePageState extends State<MyHomePage>
                         height: 18,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            cs.primary,
-                          ),
+                          valueColor: AlwaysStoppedAnimation<Color>(cs.primary),
                         ),
                       )
-                      : Icon(
-                        Icons.open_in_full,
-                        color: cs.primary,
-                      ),
+                      : Icon(Icons.open_in_full, color: cs.primary),
               tooltip: chartOnlyPageModel == null ? '차트 데이터 로딩 중...' : '차트 확대',
               onPressed:
                   chartOnlyPageModel == null
@@ -2380,6 +2912,12 @@ class _MyHomePageState extends State<MyHomePage>
                             builder:
                                 (_) => ChartOnlyPage.fromModel(
                                   chartOnlyPageModel!,
+                                  showAiTradingOption:
+                                      _chartGranularity !=
+                                      MainChartGranularity.hourly,
+                                  hourlyGranularity:
+                                      _chartGranularity ==
+                                      MainChartGranularity.hourly,
                                 ),
                             fullscreenDialog: true,
                           ),
@@ -2415,6 +2953,25 @@ class _MyHomePageState extends State<MyHomePage>
       }
     }
     return 0.0;
+  }
+
+  double _exchangeRateAtChartPoint(DateTime date) {
+    if (_chartGranularity == MainChartGranularity.hourly) {
+      for (final rate in exchangeRates) {
+        if (rate.time == date) {
+          return rate.value;
+        }
+      }
+      return 0.0;
+    }
+    return getExchangeRate(date);
+  }
+
+  double _usdtCloseAtChartPoint(DateTime date) {
+    if (_chartGranularity == MainChartGranularity.hourly) {
+      return usdtMap[date]?.close ?? 0.0;
+    }
+    return getUsdtValue(date);
   }
 
   List<PlotBand> getKimchiPlotBands() {
@@ -2462,9 +3019,15 @@ class _MyHomePageState extends State<MyHomePage>
     }
 
     final cs = Theme.of(context).colorScheme;
+    final isHourly = _chartGranularity == MainChartGranularity.hourly;
+    final tabCount = isHourly ? 1 : 2;
+    final initialTab =
+        isHourly ? 0 : _selectedStrategyTabIndex.clamp(0, tabCount - 1);
+
     return DefaultTabController(
-      length: 2,
-      initialIndex: _selectedStrategyTabIndex, // 초기 선택 탭 적용
+      key: ValueKey<String>(isHourly ? 'strategy_hourly' : 'strategy_daily'),
+      length: tabCount,
+      initialIndex: initialTab,
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         child: Column(
@@ -2485,33 +3048,47 @@ class _MyHomePageState extends State<MyHomePage>
               ),
               onTap: (idx) {
                 setState(() {
-                  _selectedStrategyTabIndex = idx;
+                  // 시간 단위는 김프 탭만 있음(탭 인덱스 0) → 내부 상태는 김프=1로 유지
+                  _selectedStrategyTabIndex = isHourly ? 1 : idx;
                 });
               },
-              tabs: [
-                Tab(text: l10n(context).aiStrategy),
-                Tab(text: l10n(context).gimchiStrategy),
-              ],
+              tabs:
+                  isHourly
+                      ? [Tab(text: l10n(context).gimchiStrategy)]
+                      : [
+                        Tab(text: l10n(context).aiStrategy),
+                        Tab(text: l10n(context).gimchiStrategy),
+                      ],
             ),
             const SizedBox(height: 12),
             SizedBox(
               height: 250,
               child: TabBarView(
                 physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  FutureBuilder<Widget>(
-                    future: _buildAiStrategyTab(),
-                    builder: (context, snapshot) {
-                      return snapshot.data ?? const SizedBox();
-                    },
-                  ),
-                  FutureBuilder<Widget>(
-                    future: _buildGimchiStrategyTab(),
-                    builder: (context, snapshot) {
-                      return snapshot.data ?? const SizedBox();
-                    },
-                  ),
-                ],
+                children:
+                    isHourly
+                        ? [
+                          FutureBuilder<Widget>(
+                            future: _buildGimchiStrategyTab(),
+                            builder: (context, snapshot) {
+                              return snapshot.data ?? const SizedBox();
+                            },
+                          ),
+                        ]
+                        : [
+                          FutureBuilder<Widget>(
+                            future: _buildAiStrategyTab(),
+                            builder: (context, snapshot) {
+                              return snapshot.data ?? const SizedBox();
+                            },
+                          ),
+                          FutureBuilder<Widget>(
+                            future: _buildGimchiStrategyTab(),
+                            builder: (context, snapshot) {
+                              return snapshot.data ?? const SizedBox();
+                            },
+                          ),
+                        ],
               ),
             ),
           ],
@@ -2645,11 +3222,7 @@ class _MyHomePageState extends State<MyHomePage>
                       context: context,
                       title: Row(
                         children: [
-                          Icon(
-                            Icons.lightbulb,
-                            color: cs.tertiary,
-                            size: 24,
-                          ),
+                          Icon(Icons.lightbulb, color: cs.tertiary, size: 24),
                           const SizedBox(width: 8),
                           Expanded(child: Text(title)),
                         ],
@@ -2682,6 +3255,9 @@ class _MyHomePageState extends State<MyHomePage>
                                 defaultStartDate: defaultStartDate,
                                 defaultEndDate: defaultEndDate,
                                 availableDates: sortedDates,
+                                hourlyDateLabels:
+                                    _chartGranularity ==
+                                    MainChartGranularity.hourly,
                               );
                             },
                             child: Text(
@@ -2720,7 +3296,7 @@ class _MyHomePageState extends State<MyHomePage>
                   foregroundColor: cs.primary,
                 ),
                 onPressed:
-                    latestStrategy == null
+                    !_canOpenSimulation(type)
                         ? null
                         : () async {
                           // 시뮬레이션 시작 이벤트 로깅
@@ -2759,6 +3335,15 @@ class _MyHomePageState extends State<MyHomePage>
                                   premiumTrends: premiumTrends,
                                   chartOnlyPageModel: chartOnlyPageModel,
                                   settings: settings,
+                                  showViewHistoryButton:
+                                      _chartGranularity !=
+                                      MainChartGranularity.hourly,
+                                  showAiChartOverlayOption:
+                                      _chartGranularity !=
+                                      MainChartGranularity.hourly,
+                                  hourlyGranularity:
+                                      _chartGranularity ==
+                                      MainChartGranularity.hourly,
                                 );
                               },
                               fullscreenDialog: true,
@@ -2813,10 +3398,10 @@ class _MyHomePageState extends State<MyHomePage>
           Text(
             l10n(context).selectReceiveAlertSubtitle,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontSize: 14,
-                  fontWeight: FontWeight.normal,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+              fontSize: 14,
+              fontWeight: FontWeight.normal,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             textAlign: TextAlign.center,
           ),
         ],

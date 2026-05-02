@@ -219,104 +219,9 @@ class SimulationModel {
     List<ChartData>? exchangeRates,
     DateTime? targetDate,
   }) {
-    // 항상 기본 임계값 사용 (추세 기반 전략 제거)
-    double buyThreshold = SimulationCondition.instance.kimchiBuyThreshold;
-    double sellThreshold = SimulationCondition.instance.kimchiSellThreshold;
-
-    if (SimulationCondition.instance.useExchangeRateSellWeight) {
-      buyThreshold = _applyExchangeRateBuyWeight(
-        baseBuyThreshold: buyThreshold,
-        exchangeRates: exchangeRates,
-        targetDate: targetDate,
-      );
-      sellThreshold = _applyExchangeRateSellWeight(
-        baseSellThreshold: sellThreshold,
-        exchangeRates: exchangeRates,
-        targetDate: targetDate,
-      );
-    }
-
+    final buyThreshold = SimulationCondition.instance.kimchiBuyThreshold;
+    final sellThreshold = SimulationCondition.instance.kimchiSellThreshold;
     return (buyThreshold, sellThreshold);
-  }
-
-  static double _applyExchangeRateSellWeight({
-    required double baseSellThreshold,
-    List<ChartData>? exchangeRates,
-    DateTime? targetDate,
-  }) {
-    if (exchangeRates == null || exchangeRates.isEmpty) {
-      return baseSellThreshold;
-    }
-
-    final DateTime referenceDate = targetDate ?? exchangeRates.last.time;
-    final currentRate =
-        _getExchangeRateAtDate(exchangeRates, referenceDate) ??
-            exchangeRates.last.value;
-    const lowRate = 1450.0;
-    const highRate = 1480.0;
-    if (lowRate >= highRate) {
-      return baseSellThreshold;
-    }
-
-    const minFactor = 0.2; // 환율 고점일 때 매도 임계값 축소 비율
-    if (currentRate <= lowRate) {
-      return baseSellThreshold;
-    }
-    final ratio =
-        ((currentRate - lowRate) / (highRate - lowRate)).clamp(0.0, 1.0);
-    final eased = _smoothstep(ratio);
-    final factor = 1.0 - eased * (1.0 - minFactor);
-    final adjusted = baseSellThreshold * factor;
-    return adjusted.clamp(-50.0, 50.0);
-  }
-
-  static double _applyExchangeRateBuyWeight({
-    required double baseBuyThreshold,
-    List<ChartData>? exchangeRates,
-    DateTime? targetDate,
-  }) {
-    if (exchangeRates == null || exchangeRates.isEmpty) {
-      return baseBuyThreshold;
-    }
-
-    final DateTime referenceDate = targetDate ?? exchangeRates.last.time;
-    final currentRate =
-        _getExchangeRateAtDate(exchangeRates, referenceDate) ??
-            exchangeRates.last.value;
-
-    const lowRate = 1450.0;
-    const highRate = 1480.0;
-    const targetHighBuyThreshold = -1.5;
-    if (lowRate >= highRate) {
-      return baseBuyThreshold;
-    }
-    if (currentRate <= lowRate) {
-      return baseBuyThreshold;
-    }
-
-    final ratio =
-        ((currentRate - lowRate) / (highRate - lowRate)).clamp(0.0, 1.0);
-    final eased = _smoothstep(ratio);
-    final adjusted = baseBuyThreshold +
-        (targetHighBuyThreshold - baseBuyThreshold) * eased;
-    return adjusted.clamp(-50.0, 50.0);
-  }
-
-  static double _smoothstep(double t) {
-    final clamped = t.clamp(0.0, 1.0);
-    return clamped * clamped * (3 - 2 * clamped);
-  }
-
-  static double? _getExchangeRateAtDate(
-    List<ChartData> exchangeRates,
-    DateTime targetDate,
-  ) {
-    ChartData? closest;
-    for (final rate in exchangeRates) {
-      if (rate.time.isAfter(targetDate)) break;
-      closest = rate;
-    }
-    return closest?.value;
   }
 
   // 김치 시뮬레이션 결과 계산
@@ -369,6 +274,9 @@ class SimulationModel {
       for (var rate in usdExchangeRates) rate.time: rate.value,
     };
 
+    final fxBuyMax = SimulationCondition.instance.kimchiFxBuyMax;
+    final fxSellMin = SimulationCondition.instance.kimchiFxSellMin;
+
     // premiumTrends는 매개변수로 받은 서버 데이터 사용
 
     for (final date in sortedDates) {
@@ -393,7 +301,11 @@ class SimulationModel {
       if (buyPrice == null) {
         // 매도 대기 상태가 아니어야 매수
         if (sellPrice == null) {
-          if (buyTargetPrice >= usdtLow) {
+          final fxBlocksBuy =
+              fxBuyMax > 0 &&
+              usdExchangeRate > 0 &&
+              usdExchangeRate >= fxBuyMax;
+          if (!fxBlocksBuy && buyTargetPrice >= usdtLow) {
             // 100원에 매수 하려고 했는데 고가가 90원이라면 그냥 90원에 매수 하겠지
             buyPrice = min(buyTargetPrice, usdtHigh);
             // 수수료 적용: 실제 매수 금액 = 매수 금액 * (1 + 수수료율)
@@ -413,8 +325,13 @@ class SimulationModel {
 
       bool canSell = _isSellCondition(usdtMap, date, buyDate);
 
+      final fxBlocksSell =
+          fxSellMin > 0 &&
+          usdExchangeRate > 0 &&
+          usdExchangeRate <= fxSellMin;
+
       // 매도 조건: 프리미엄 sellThreshold% 초과, 이미 매수한 상태
-      if (canSell && sellTargetPrice <= usdtHigh) {
+      if (canSell && !fxBlocksSell && sellTargetPrice <= usdtHigh) {
         sellDate = date;
         // 매도 가격이 100원인데 저가가 110원 이면 그냥 110원에 매도 그래서 둘중 높은값
         sellPrice = max(sellTargetPrice, usdtLow);
@@ -674,6 +591,17 @@ class SimulationModel {
           return null;
         }
 
+        final fxBuyMax = SimulationCondition.instance.kimchiFxBuyMax;
+        final fxSellMin = SimulationCondition.instance.kimchiFxSellMin;
+        final fxBlocksBuyKimchi =
+            fxBuyMax > 0 &&
+            exchangeRateValue > 0 &&
+            exchangeRateValue >= fxBuyMax;
+        final fxBlocksSellKimchi =
+            fxSellMin > 0 &&
+            exchangeRateValue > 0 &&
+            exchangeRateValue <= fxSellMin;
+
         // 오늘 날짜 (targetDate로 사용)
         final todayUsdtTime = usdtChartData.last.time;
 
@@ -685,26 +613,32 @@ class SimulationModel {
         );
 
         // 김치 프리미엄 매수/매도 가격 계산
-        final buyPrice = (exchangeRateValue * (1 + buyThreshold / 100));
-        final sellPrice = (exchangeRateValue * (1 + sellThreshold / 100));
+        final buyPriceKimchi = (exchangeRateValue * (1 + buyThreshold / 100));
+        final sellPriceKimchi =
+            (exchangeRateValue * (1 + sellThreshold / 100));
 
-        if (buyPrice == 0 || sellPrice == 0) {
+        if (buyPriceKimchi == 0 || sellPriceKimchi == 0) {
           return null;
         }
 
-        if (currentPrice > buyPrice) {
+        if (currentPrice > buyPriceKimchi) {
+          if (fxBlocksBuyKimchi) {
+            return null;
+          }
           return (
-            price: buyPrice,
+            price: buyPriceKimchi,
             isBuy: true,
-            kimchiPremium: buyThreshold, // 임계값 그대로 사용
-          );
-        } else {
-          return (
-            price: sellPrice,
-            isBuy: false,
-            kimchiPremium: sellThreshold, // 임계값 그대로 사용
+            kimchiPremium: buyThreshold,
           );
         }
+        if (fxBlocksSellKimchi) {
+          return null;
+        }
+        return (
+          price: sellPriceKimchi,
+          isBuy: false,
+          kimchiPremium: sellThreshold,
+        );
     }
   }
 

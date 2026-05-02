@@ -24,6 +24,12 @@ class ChartOnlyPage extends StatefulWidget {
   final bool initialShowAITrading;
   final bool initialShowGimchiTrading;
 
+  /// 시간 봉 등 AI 오버레이가 없는 모드에서 «AI 매수/매도» 체크박스를 숨김.
+  final bool showAiTradingOption;
+
+  /// 시간 기준 차트일 때 X축에 년도 없이 시간 표시 (`M/d HH:mm`).
+  final bool hourlyGranularity;
+
   static const buyMarkerImage = AssetImage('assets/markers/arrow_shape_up.png');
   static const sellMarkerImage = AssetImage(
     'assets/markers/arrow_shape_down.png',
@@ -42,6 +48,8 @@ class ChartOnlyPage extends StatefulWidget {
     this.premiumTrends,
     this.initialShowAITrading = false,
     this.initialShowGimchiTrading = false,
+    this.showAiTradingOption = true,
+    this.hourlyGranularity = false,
   });
 
   // 모델을 받는 생성자도 초기값 전달 가능하게 수정
@@ -50,6 +58,8 @@ class ChartOnlyPage extends StatefulWidget {
     Key? key,
     this.initialShowAITrading = false,
     this.initialShowGimchiTrading = false,
+    this.showAiTradingOption = true,
+    this.hourlyGranularity = false,
   }) : exchangeRates = model.exchangeRates,
        kimchiPremium = model.kimchiPremium,
        strategyList = model.strategyList,
@@ -80,21 +90,31 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
     zoomMode: ZoomMode.xy,
   );
 
-  DateTimeAxis primaryXAxis = DateTimeAxis(
-    edgeLabelPlacement: EdgeLabelPlacement.shift,
-    intervalType: DateTimeIntervalType.days,
-    dateFormat: DateFormat.yMd(),
-    rangePadding: ChartRangePadding.additionalEnd,
-    initialZoomFactor: 0.9,
-    initialZoomPosition: 0.8,
-  );
+  late DateTimeAxis primaryXAxis;
+
+  void _syncPrimaryXAxisZoomTemplate() {
+    primaryXAxis = DateTimeAxis(
+      edgeLabelPlacement: EdgeLabelPlacement.shift,
+      intervalType:
+          widget.hourlyGranularity
+              ? DateTimeIntervalType.hours
+              : DateTimeIntervalType.days,
+      dateFormat:
+          widget.hourlyGranularity ? DateFormat('M/d HH:mm') : DateFormat.yMd(),
+      rangePadding: ChartRangePadding.additionalEnd,
+      initialZoomFactor: 0.9,
+      initialZoomPosition: 0.8,
+    );
+  }
 
   @override
   void initState() {
     super.initState();
+    _syncPrimaryXAxisZoomTemplate();
 
     // 초기 체크박스 상태를 위젯 파라미터로부터 세팅
-    showAITrading = widget.initialShowAITrading;
+    showAITrading =
+        widget.showAiTradingOption && widget.initialShowAITrading;
     showGimchiTrading = widget.initialShowGimchiTrading;
 
     // 체크박스에 따라 필요한 동작 자동 실행
@@ -102,6 +122,14 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _loadTradeSimulationMarkers();
       });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant ChartOnlyPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.hourlyGranularity != widget.hourlyGranularity) {
+      _syncPrimaryXAxisZoomTemplate();
     }
   }
 
@@ -504,8 +532,12 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
     final axisLineColor = cs.outline.withValues(alpha: 0.55);
     return DateTimeAxis(
       edgeLabelPlacement: EdgeLabelPlacement.shift,
-      intervalType: DateTimeIntervalType.days,
-      dateFormat: DateFormat.yMd(),
+      intervalType:
+          widget.hourlyGranularity
+              ? DateTimeIntervalType.hours
+              : DateTimeIntervalType.days,
+      dateFormat:
+          widget.hourlyGranularity ? DateFormat('M/d HH:mm') : DateFormat.yMd(),
       rangePadding: ChartRangePadding.additionalEnd,
       initialZoomFactor: 0.9,
       initialZoomPosition: 0.8,
@@ -806,7 +838,7 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
             child: Wrap(
               alignment: WrapAlignment.start,
               spacing: 16,
@@ -826,37 +858,38 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
                   onChanged:
                       (val) => setState(() => showKimchiPremium = val ?? true),
                 ),
-                CheckBoxItem(
-                  value: showAITrading,
-                  label: l10n.aiBuySell,
-                  color: cs.primary,
-                  onChanged: (val) async {
-                    final on = val ?? false;
-                    if (on) {
-                      final cap =
-                          await SimulationCondition.instance.getInitialCapitalKrw();
-                      if (!mounted) return;
-                      setState(() {
-                        showAITrading = true;
-                        showGimchiTrading = false;
-                        showKimchiPremium = false;
-                        showExchangeRate = false;
-                        aiTradeResults = SimulationModel.simulateResults(
-                          widget.exchangeRates,
-                          widget.strategyList,
-                          widget.usdtMap,
-                          initialKRW: cap,
-                        );
-                      });
-                      _autoZoomToAITrades();
-                    } else {
-                      setState(() {
-                        showAITrading = false;
-                        aiTradeResults = [];
-                      });
-                    }
-                  },
-                ),
+                if (widget.showAiTradingOption)
+                  CheckBoxItem(
+                    value: showAITrading,
+                    label: l10n.aiBuySell,
+                    color: cs.primary,
+                    onChanged: (val) async {
+                      final on = val ?? false;
+                      if (on) {
+                        final cap =
+                            await SimulationCondition.instance.getInitialCapitalKrw();
+                        if (!mounted) return;
+                        setState(() {
+                          showAITrading = true;
+                          showGimchiTrading = false;
+                          showKimchiPremium = false;
+                          showExchangeRate = false;
+                          aiTradeResults = SimulationModel.simulateResults(
+                            widget.exchangeRates,
+                            widget.strategyList,
+                            widget.usdtMap,
+                            initialKRW: cap,
+                          );
+                        });
+                        _autoZoomToAITrades();
+                      } else {
+                        setState(() {
+                          showAITrading = false;
+                          aiTradeResults = [];
+                        });
+                      }
+                    },
+                  ),
                 CheckBoxItem(
                   value: showGimchiTrading,
                   label: l10n.kimchiPremiumBuySell,

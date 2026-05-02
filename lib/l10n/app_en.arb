@@ -92,7 +92,6 @@
   "kimchiStartDate": "Start date",
   "kimchiEndDate": "End date",
   "kimchiResetDateRange": "Full period",
-  "useExchangeRateSellWeight": "Adjust buy/sell thresholds by exchange rate",
   "failedToSaveSettings": "Failed to save settings.",
   "buyPrice": "Buy Price",
   "sellPrice": "Sell Price",
@@ -189,5 +188,28 @@
         "type": "String"
       }
     }
-  }
+  },
+  "chartGranularityDaily": "By day",
+  "chartGranularityHourly": "By hour",
+  "hourlyChartLoadFailed": "Could not load hourly chart data.",
+  "hourlyGranularityIntroTitle": "About hourly charts",
+  "hourlyGranularityIntroBody": "Hourly mode aligns Upbit USDT with USD/KRW by the hour for K-premium simulation. The history window is limited to about {maxDays} days, but finer timestamps reduce the timing and averaging gaps you can get on daily candles alone. Trade-off: a shorter range for a closer, more precise read—use it when that matters to you.",
+  "@hourlyGranularityIntroBody": {
+    "placeholders": {
+      "maxDays": {
+        "type": "int"
+      }
+    }
+  },
+  "hourlyGranularityNewBadgeSemanticLabel": "New: hourly chart guide available",
+  "kimchiFxBuyMaxLabel": "Max buy FX (₩)",
+  "kimchiFxBuyMaxHint": "e.g. 2,000",
+  "kimchiFxSellMinLabel": "Min sell FX (₩)",
+  "kimchiFxSellMinHint": "e.g. 0",
+  "kimchiFxRateLimitHelpTitle": "About",
+  "kimchiFxRateLimitHelpTooltip": "Show explanation",
+  "kimchiFxBuyMaxHelpBody": "When the exchange rate is at or above this value, K-premium buys are skipped to help improve returns.",
+  "kimchiFxSellMinHelpBody": "When the exchange rate is at or below this value, K-premium sells are skipped to help improve returns.",
+  "kimchiBuyThresholdHelpBody": "Kimchi premium (how much Korea’s USDT price sits above the USD/KRW rate) at or below this percent is treated as a buy signal. Lower values aim to buy when the premium is smaller; higher values allow buying sooner.",
+  "kimchiSellThresholdHelpBody": "Premium at or above this percent is treated as a sell signal. Higher values wait for a larger premium before selling; lower values may sell on smaller premiums."
 }

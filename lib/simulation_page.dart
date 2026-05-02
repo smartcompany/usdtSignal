@@ -221,6 +221,15 @@ class SimulationPage extends StatefulWidget {
   // Settings 데이터
   final Map<String, dynamic>? settings;
 
+  /// 시간봉(메인 시간 기준) 등 AI 전략 히스토리가 의미 없을 때 하단 «View History» 숨김.
+  final bool showViewHistoryButton;
+
+  /// 시간 기준일 때 상세 차트에서 «AI 매수/매도» 체크박스 숨김.
+  final bool showAiChartOverlayOption;
+
+  /// 시간 봉 모드: 시뮬·전략 팝업 등 날짜 라벨에 년 대신 시각 포함.
+  final bool hourlyGranularity;
+
   const SimulationPage({
     super.key,
     required this.simulationType,
@@ -230,22 +239,62 @@ class SimulationPage extends StatefulWidget {
     this.premiumTrends,
     this.chartOnlyPageModel,
     this.settings,
+    this.showViewHistoryButton = true,
+    this.showAiChartOverlayOption = true,
+    this.hourlyGranularity = false,
   });
+
+  static Future<void> _showKimchiFxRateHelpDialog(
+    BuildContext context, {
+    required String title,
+    required String body,
+  }) {
+    return LiquidGlassDialog.show<void>(
+      context: context,
+      title: Text(title),
+      content: SingleChildScrollView(
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(body, textAlign: TextAlign.start),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n(context).confirm),
+        ),
+      ],
+    );
+  }
 
   static Future<bool> showKimchiStrategyUpdatePopup(
     BuildContext context, {
     DateTime? defaultStartDate,
     DateTime? defaultEndDate,
     List<DateTime>? availableDates,
+    bool hourlyDateLabels = false,
   }) async {
     final result = await showDialog<Map<String, Object?>>(
       context: context,
       builder: (context) {
+        final fxIntFormat = NumberFormat(
+          '#,##0',
+          Localizations.localeOf(context).toLanguageTag(),
+        );
+        final fxBuyMaxCtrl = TextEditingController(
+          text: fxIntFormat.format(
+            SimulationCondition.instance.kimchiFxBuyMax.round(),
+          ),
+        );
+        final fxSellMinCtrl = TextEditingController(
+          text: fxIntFormat.format(
+            SimulationCondition.instance.kimchiFxSellMin.round(),
+          ),
+        );
+
         double buy = SimulationCondition.instance.kimchiBuyThreshold;
         double sell = SimulationCondition.instance.kimchiSellThreshold;
         final sortedDates = (availableDates ?? <DateTime>[]).toList()..sort();
-        bool useExchangeRateSellWeight =
-            SimulationCondition.instance.useExchangeRateSellWeight;
         DateTime? startDate =
             SimulationCondition.instance.kimchiStartDate ?? defaultStartDate;
         DateTime? endDate =
@@ -275,8 +324,13 @@ class SimulationPage extends StatefulWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text(l10n(context).buyBase),
+                      Text(
+                        l10n(context).buyBase,
+                        maxLines: 2,
+                        softWrap: true,
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: TextFormField(
@@ -299,12 +353,28 @@ class SimulationPage extends StatefulWidget {
                           },
                         ),
                       ),
+                      IconButton(
+                        icon: const Icon(Icons.help_outline),
+                        tooltip: l10n(context).kimchiFxRateLimitHelpTooltip,
+                        onPressed: () {
+                          _showKimchiFxRateHelpDialog(
+                            context,
+                            title: l10n(context).kimchiFxRateLimitHelpTitle,
+                            body: l10n(context).kimchiBuyThresholdHelpBody,
+                          );
+                        },
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text(l10n(context).sellBase),
+                      Text(
+                        l10n(context).sellBase,
+                        maxLines: 2,
+                        softWrap: true,
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: TextFormField(
@@ -327,6 +397,97 @@ class SimulationPage extends StatefulWidget {
                           },
                         ),
                       ),
+                      IconButton(
+                        icon: const Icon(Icons.help_outline),
+                        tooltip: l10n(context).kimchiFxRateLimitHelpTooltip,
+                        onPressed: () {
+                          _showKimchiFxRateHelpDialog(
+                            context,
+                            title: l10n(context).kimchiFxRateLimitHelpTitle,
+                            body: l10n(context).kimchiSellThresholdHelpBody,
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        l10n(context).kimchiFxBuyMaxLabel,
+                        maxLines: 2,
+                        softWrap: true,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          controller: fxBuyMaxCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: false,
+                            signed: false,
+                          ),
+                          inputFormatters: [
+                            _ThousandsSeparatorDigitsFormatter(fxIntFormat),
+                          ],
+                          decoration: InputDecoration(
+                            border: const OutlineInputBorder(),
+                            isDense: true,
+                            hintText: l10n(context).kimchiFxBuyMaxHint,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.help_outline),
+                        tooltip: l10n(context).kimchiFxRateLimitHelpTooltip,
+                        onPressed: () {
+                          _showKimchiFxRateHelpDialog(
+                            context,
+                            title: l10n(context).kimchiFxRateLimitHelpTitle,
+                            body: l10n(context).kimchiFxBuyMaxHelpBody,
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        l10n(context).kimchiFxSellMinLabel,
+                        maxLines: 2,
+                        softWrap: true,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          controller: fxSellMinCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: false,
+                            signed: false,
+                          ),
+                          inputFormatters: [
+                            _ThousandsSeparatorDigitsFormatter(fxIntFormat),
+                          ],
+                          decoration: InputDecoration(
+                            border: const OutlineInputBorder(),
+                            isDense: true,
+                            hintText: l10n(context).kimchiFxSellMinHint,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.help_outline),
+                        tooltip: l10n(context).kimchiFxRateLimitHelpTooltip,
+                        onPressed: () {
+                          _showKimchiFxRateHelpDialog(
+                            context,
+                            title: l10n(context).kimchiFxRateLimitHelpTitle,
+                            body: l10n(context).kimchiFxSellMinHelpBody,
+                          );
+                        },
+                      ),
                     ],
                   ),
                   const SizedBox(height: 20),
@@ -335,7 +496,10 @@ class SimulationPage extends StatefulWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(l10n(context).kimchiStartDate),
-                        Text(startDate?.toCustomString() ?? l10n(context).dash),
+                        Text(
+                          startDate?.toSimulationUiString(hourlyDateLabels) ??
+                              l10n(context).dash,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 6),
@@ -343,7 +507,10 @@ class SimulationPage extends StatefulWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(l10n(context).kimchiEndDate),
-                        Text(endDate?.toCustomString() ?? l10n(context).dash),
+                        Text(
+                          endDate?.toSimulationUiString(hourlyDateLabels) ??
+                              l10n(context).dash,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -353,8 +520,10 @@ class SimulationPage extends StatefulWidget {
                       max: (sortedDates.length - 1).toDouble(),
                       divisions: sortedDates.length - 1,
                       labels: RangeLabels(
-                        startDate?.toCustomString() ?? l10n(context).dash,
-                        endDate?.toCustomString() ?? l10n(context).dash,
+                        startDate?.toSimulationUiString(hourlyDateLabels) ??
+                            l10n(context).dash,
+                        endDate?.toSimulationUiString(hourlyDateLabels) ??
+                            l10n(context).dash,
                       ),
                       onChanged: (values) {
                         setState(() {
@@ -396,24 +565,6 @@ class SimulationPage extends StatefulWidget {
                       child: Text(l10n(context).kimchiResetDateRange),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Checkbox(
-                        value: useExchangeRateSellWeight,
-                        onChanged: (value) {
-                          setState(() {
-                            useExchangeRateSellWeight = value ?? false;
-                          });
-                        },
-                      ),
-                      Expanded(
-                        child: Text(
-                          l10n(context).useExchangeRateSellWeight,
-                        ),
-                      ),
-                    ],
-                  ),
                 ],
               ),
               actions: [
@@ -423,12 +574,28 @@ class SimulationPage extends StatefulWidget {
                 ),
                 ElevatedButton(
                   onPressed: () {
+                    final fxBuyDigits = fxBuyMaxCtrl.text.replaceAll(
+                      RegExp(r'[^\d]'),
+                      '',
+                    );
+                    final fxBuyParsed =
+                        double.tryParse(fxBuyDigits) ??
+                        SimulationCondition.defaultKimchiFxBuyMax;
+
+                    final fxSellDigits = fxSellMinCtrl.text.replaceAll(
+                      RegExp(r'[^\d]'),
+                      '',
+                    );
+                    final fxSellParsed =
+                        double.tryParse(fxSellDigits) ?? 0.0;
+
                     Navigator.of(context).pop({
                       'buy': buy,
                       'sell': sell,
                       'startDate': startDate,
                       'endDate': endDate,
-                      'useExchangeRateSellWeight': useExchangeRateSellWeight,
+                      'kimchiFxBuyMax': fxBuyParsed,
+                      'kimchiFxSellMin': fxSellParsed,
                     });
                   },
                   child: Text(l10n(context).confirm),
@@ -445,13 +612,17 @@ class SimulationPage extends StatefulWidget {
       final sell = result['sell'] as double;
       final startDate = result['startDate'] as DateTime?;
       final endDate = result['endDate'] as DateTime?;
-      final useExchangeRateSellWeight =
-          result['useExchangeRateSellWeight'] as bool? ?? false;
+      final kimchiFxBuyMax =
+          (result['kimchiFxBuyMax'] as num?)?.toDouble() ??
+          SimulationCondition.defaultKimchiFxBuyMax;
+      final kimchiFxSellMin =
+          (result['kimchiFxSellMin'] as num?)?.toDouble() ?? 0.0;
 
       final isSuccess = await ApiService.shared.saveAndSyncUserData({
         UserDataKey.gimchiBuyPercent: buy,
         UserDataKey.gimchiSellPercent: sell,
-        UserDataKey.gimchiSellFollowExchangeRate: useExchangeRateSellWeight,
+        UserDataKey.gimchiFxBuyMax: kimchiFxBuyMax,
+        UserDataKey.gimchiFxSellMin: kimchiFxSellMin,
       });
 
       if (isSuccess) {
@@ -461,8 +632,10 @@ class SimulationPage extends StatefulWidget {
           startDate: startDate,
           endDate: endDate,
         );
-        await SimulationCondition.instance
-            .saveUseExchangeRateSellWeight(useExchangeRateSellWeight);
+        await SimulationCondition.instance.saveKimchiFxBuyMax(kimchiFxBuyMax);
+        await SimulationCondition.instance.saveKimchiFxSellMin(
+          kimchiFxSellMin,
+        );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(l10n(context).failedToSaveSettings)),
@@ -490,6 +663,13 @@ class _SimulationPageState extends State<SimulationPage>
   final NumberFormat krwFormat = NumberFormat("#,##0.#", "ko_KR");
   double totalProfitRate = 0; // 총 수익률 변수 추가
   double _initialCapitalKrw = 1000000;
+
+  String _simDateLabel(DateTime? d, {String empty = "-"}) {
+    if (d == null) {
+      return empty;
+    }
+    return d.toSimulationUiString(widget.hourlyGranularity);
+  }
 
   @override
   void initState() {
@@ -748,7 +928,7 @@ class _SimulationPageState extends State<SimulationPage>
                       Row(
                         children: [
                           Text(
-                            '${displayDate.toCustomString()} ${l10n(context).strategy}',
+                            '${displayDate.toSimulationUiString(widget.hourlyGranularity)} ${l10n(context).strategy}',
                             style: _TitleStyles.dialogTitle(context).copyWith(
                               fontSize: 18,
                             ),
@@ -877,6 +1057,7 @@ class _SimulationPageState extends State<SimulationPage>
                             defaultStartDate: defaultStartDate,
                             defaultEndDate: defaultEndDate,
                             availableDates: sortedDates,
+                            hourlyDateLabels: widget.hourlyGranularity,
                           );
                       if (success) {
                         runSimulation();
@@ -1083,6 +1264,10 @@ class _SimulationPageState extends State<SimulationPage>
                                       initialShowGimchiTrading:
                                           widget.simulationType ==
                                           SimulationType.kimchi,
+                                      showAiTradingOption:
+                                          widget.showAiChartOverlayOption,
+                                      hourlyGranularity:
+                                          widget.hourlyGranularity,
                                     ),
                                 fullscreenDialog: true,
                               ),
@@ -1093,8 +1278,10 @@ class _SimulationPageState extends State<SimulationPage>
                     ),
                     const SizedBox(height: 12),
                     _buildPerformanceMetrics(context),
-                    const SizedBox(height: 24),
-                    _buildViewHistoryButton(context),
+                    if (widget.showViewHistoryButton) ...[
+                      const SizedBox(height: 24),
+                      _buildViewHistoryButton(context),
+                    ],
                     // 하단 SafeArea 고려
                     SizedBox(height: MediaQuery.of(context).padding.bottom),
                   ],
@@ -1232,9 +1419,11 @@ class _SimulationPageState extends State<SimulationPage>
                       builder: (context) {
                         if (results.isEmpty) return const Text("-");
                         final startDate =
-                            results.first.buyDate?.toCustomString() ?? "";
-                        final endDate =
-                            results.last.analysisDate.toCustomString();
+                            _simDateLabel(results.first.buyDate, empty: "");
+                        final endDate = _simDateLabel(
+                          results.last.analysisDate,
+                          empty: "",
+                        );
                         return Text(
                           "$startDate - $endDate",
                           style: _CardStyles.headerCardValue(context),
@@ -1474,7 +1663,7 @@ class _SimulationPageState extends State<SimulationPage>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      r.buyDate?.toCustomString() ?? "-",
+                      _simDateLabel(r.buyDate),
                       style: _CardStyles.cardDate(context).copyWith(
                         color: Colors.white.withValues(alpha: 0.92),
                       ),
@@ -1572,7 +1761,7 @@ class _SimulationPageState extends State<SimulationPage>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      r.sellDate?.toCustomString() ?? "-",
+                      _simDateLabel(r.sellDate),
                       style: _CardStyles.cardDate(context).copyWith(
                         color: Colors.white.withValues(alpha: 0.92),
                       ),

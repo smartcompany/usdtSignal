@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
@@ -28,8 +29,51 @@ class ApiService {
   // Private 생성자
   ApiService._internal();
 
+  /// 마지막으로 성공적으로 받은 시간봉 병합 결과 (일↔시간 전환 시 즉시 재사용).
+  MergedHourlyChartData? _hourlyMergedMemoryCache;
+
+  /// [upbitHourlyHistoryUrl] + [usdKrwHourlyHistoryUrl] 응답 바이트 기반 지문 (동일 페이로드면 파싱 생략).
+  int? _hourlyMergedBodyFingerprint;
+  bool _hourlyRevalidateInFlight = false;
+
+  final StreamController<MergedHourlyChartData> _hourlyMergedUpdatedController =
+      StreamController<MergedHourlyChartData>.broadcast();
+
+  /// 백그라운드 재요청 후 서버 페이로드가 바뀐 경우에만 이벤트가 내려옵니다.
+  Stream<MergedHourlyChartData> get hourlyMergedUpdated =>
+      _hourlyMergedUpdatedController.stream;
+
+  bool get hourlyMergedMemoryCacheReady => _hourlyMergedMemoryCache != null;
+
+  void clearHourlyMergedMemoryCache() {
+    _hourlyMergedMemoryCache = null;
+    _hourlyMergedBodyFingerprint = null;
+  }
+
+  static int _fnv1a64(List<int> bytes) {
+    const int prime = 1099511628211;
+    var hash = 0xcbf29ce484222325;
+    for (var i = 0; i < bytes.length; i++) {
+      hash ^= bytes[i];
+      hash = (hash * prime) & 0xFFFFFFFFFFFFFFFF;
+    }
+    return hash;
+  }
+
+  static int _hourlyPayloadFingerprint(List<int> usdt, List<int> fx) {
+    return Object.hash(
+      usdt.length,
+      fx.length,
+      _fnv1a64(usdt),
+      _fnv1a64(fx),
+    );
+  }
+
   static const int days = 200;
   static const String host = "https://rate-history.vercel.app";
+  /// 시간봉 스냅샷은 일별 API와 동일 호스트(`/api/usdt-history-hour`, `/api/rate-history-hour`)를 경유합니다.
+  static const String upbitHourlyHistoryUrl = "$host/api/usdt-history-hour";
+  static const String usdKrwHourlyHistoryUrl = "$host/api/rate-history-hour";
   static const String upbitUsdtUrl = "$host/api/usdt-history?days=all";
   static const String rateHistoryUrl = "$host/api/rate-history?days=$days";
   static const String gimchHistoryUrl = "$host/api/gimch-history?days=$days";
@@ -171,6 +215,153 @@ class ApiService {
       print('환율 데이터 가져오기 실패: $e');
       return [];
     }
+  }
+
+  /// 업비트/FX 시간 데이처 JSON을 시간축으로 맞춘 뒤 김프·차트 입력을 생성합니다.
+  /// FX는 업비트 시각 이하에서 가장 마지막 값을 전방 채우기로 매칭합니다.
+  ///
+  /// 동일 세션에서 이미 받은 적이 있으면 **즉시** 캐시를 돌려주고, 네트워크는 백그라운드에서만
+  /// 다시 받습니다. 응답 바이트 지문이 이전과 같으면 JSON 병합을 건너뜁니다.
+  Future<MergedHourlyChartData?> fetchMergedHourlyChartData({
+    Duration timeout = const Duration(seconds: 45),
+  }) async {
+    if (_hourlyMergedMemoryCache != null) {
+      unawaited(_revalidateHourlyMergedInBackground(timeout: timeout));
+      return _hourlyMergedMemoryCache;
+    }
+    return _downloadAndMergeHourlyPayload(timeout: timeout);
+  }
+
+  Future<void> _revalidateHourlyMergedInBackground({
+    required Duration timeout,
+  }) async {
+    if (_hourlyRevalidateInFlight) return;
+    _hourlyRevalidateInFlight = true;
+    try {
+      final fpBefore = _hourlyMergedBodyFingerprint;
+      final merged = await _downloadAndMergeHourlyPayload(timeout: timeout);
+      if (merged == null) return;
+      final fpAfter = _hourlyMergedBodyFingerprint;
+      if (fpBefore != null && fpAfter != null && fpAfter != fpBefore) {
+        _hourlyMergedUpdatedController.add(merged);
+      }
+    } finally {
+      _hourlyRevalidateInFlight = false;
+    }
+  }
+
+  Future<MergedHourlyChartData?> _downloadAndMergeHourlyPayload({
+    required Duration timeout,
+  }) async {
+    try {
+      final usdtResp = await http
+          .get(Uri.parse(upbitHourlyHistoryUrl))
+          .timeout(timeout);
+      final fxResp = await http
+          .get(Uri.parse(usdKrwHourlyHistoryUrl))
+          .timeout(timeout);
+
+      if (usdtResp.statusCode != 200 || fxResp.statusCode != 200) {
+        return null;
+      }
+
+      final usdtBytes = usdtResp.bodyBytes;
+      final fxBytes = fxResp.bodyBytes;
+      final fp = _hourlyPayloadFingerprint(usdtBytes, fxBytes);
+
+      if (fp == _hourlyMergedBodyFingerprint &&
+          _hourlyMergedMemoryCache != null) {
+        return _hourlyMergedMemoryCache;
+      }
+
+      final usdtJson =
+          json.decode(utf8.decode(usdtBytes)) as Map<String, dynamic>;
+      final fxJson =
+          json.decode(utf8.decode(fxBytes)) as Map<String, dynamic>;
+
+      final usdtSeries = usdtJson['series'] as List<dynamic>? ?? [];
+      final fxSeries = fxJson['series'] as List<dynamic>? ?? [];
+
+      final fxPoints = <ChartData>[];
+      for (final row in fxSeries) {
+        if (row is! Map<String, dynamic>) continue;
+        final dtStr = row['datetime']?.toString();
+        final v = row['usd_krw'];
+        if (dtStr == null || v == null) continue;
+        fxPoints.add(ChartData(_parseHourlyDateTime(dtStr), (v as num).toDouble()));
+      }
+      fxPoints.sort((a, b) => a.time.compareTo(b.time));
+
+      final mergedUsdtKeys = <DateTime, USDTChartData>{};
+      final mergedFx = <ChartData>[];
+
+      final usdtList = <USDTChartData>[];
+      for (final row in usdtSeries) {
+        if (row is! Map<String, dynamic>) continue;
+        final dtStr = row['datetime']?.toString();
+        if (dtStr == null) continue;
+        final t = _parseHourlyDateTime(dtStr);
+        usdtList.add(
+          USDTChartData(
+            t,
+            (row['open'] as num?)?.toDouble() ?? (row['close'] as num).toDouble(),
+            (row['close'] as num).toDouble(),
+            (row['high'] as num?)?.toDouble() ?? (row['close'] as num).toDouble(),
+            (row['low'] as num?)?.toDouble() ?? (row['close'] as num).toDouble(),
+          ),
+        );
+      }
+      usdtList.sort((a, b) => a.time.compareTo(b.time));
+
+      var fxIdx = -1;
+      double? fxVal;
+      for (final u in usdtList) {
+        while (fxIdx + 1 < fxPoints.length &&
+            !fxPoints[fxIdx + 1].time.isAfter(u.time)) {
+          fxIdx++;
+          fxVal = fxPoints[fxIdx].value;
+        }
+        if (fxIdx < 0 || fxVal == null) continue;
+
+        mergedUsdtKeys[u.time] = u;
+        mergedFx.add(ChartData(u.time, fxVal));
+      }
+
+      final usdtSorted = mergedUsdtKeys.entries.toList()
+        ..sort((a, b) => a.key.compareTo(b.key));
+      final kp = <ChartData>[];
+      for (final e in usdtSorted) {
+        ChartData? match;
+        for (final c in mergedFx) {
+          if (c.time == e.key) {
+            match = c;
+            break;
+          }
+        }
+        if (match == null) continue;
+        kp.add(
+          ChartData(e.key, gimchiPremium(e.value.close, match.value)),
+        );
+      }
+
+      final merged = MergedHourlyChartData(
+        usdtMap: mergedUsdtKeys,
+        exchangeRatesAligned: mergedFx,
+        kimchiPremium: kp,
+      );
+      _hourlyMergedBodyFingerprint = fp;
+      _hourlyMergedMemoryCache = merged;
+      return merged;
+    } catch (e) {
+      print('시간 봉 차트 데이터 로드 실패: $e');
+      return null;
+    }
+  }
+
+  static DateTime _parseHourlyDateTime(String raw) {
+    final s = raw.trim();
+    if (s.contains('T')) return DateTime.parse(s);
+    return DateTime.parse(s.replaceFirst(' ', 'T'));
   }
 
   // 김치 프리미엄 데이터
@@ -578,11 +769,24 @@ class AirdropInfo {
   }
 }
 
+class MergedHourlyChartData {
+  final Map<DateTime, USDTChartData> usdtMap;
+  final List<ChartData> exchangeRatesAligned;
+  final List<ChartData> kimchiPremium;
+
+  const MergedHourlyChartData({
+    required this.usdtMap,
+    required this.exchangeRatesAligned,
+    required this.kimchiPremium,
+  });
+}
+
 enum UserDataKey {
   pushType,
   gimchiBuyPercent,
   gimchiSellPercent,
-  gimchiSellFollowExchangeRate,
+  gimchiFxBuyMax,
+  gimchiFxSellMin,
   simulationInitialKrw,
 }
 
@@ -595,8 +799,10 @@ extension UserDataKeyExt on UserDataKey {
         return 'gimchiBuyPercent';
       case UserDataKey.gimchiSellPercent:
         return 'gimchiSellPercent';
-      case UserDataKey.gimchiSellFollowExchangeRate:
-        return 'gimchiSellFollowExchangeRate';
+      case UserDataKey.gimchiFxBuyMax:
+        return 'kimchiFxBuyMax';
+      case UserDataKey.gimchiFxSellMin:
+        return 'kimchiFxSellMin';
       case UserDataKey.simulationInitialKrw:
         return 'simulationInitialKrw';
     }

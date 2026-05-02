@@ -267,9 +267,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get kimchiResetDateRange => '全部期间';
 
   @override
-  String get useExchangeRateSellWeight => '按汇率调整买入/卖出阈值';
-
-  @override
   String get failedToSaveSettings => '保存设置失败。';
 
   @override
@@ -467,4 +464,56 @@ class AppLocalizationsZh extends AppLocalizations {
   String feeWithAmount(String amount) {
     return '手续费: ₩$amount';
   }
+
+  @override
+  String get chartGranularityDaily => '按日';
+
+  @override
+  String get chartGranularityHourly => '按小时';
+
+  @override
+  String get hourlyChartLoadFailed => '小时线图表数据加载失败。';
+
+  @override
+  String get hourlyGranularityIntroTitle => '关于「按小时」';
+
+  @override
+  String hourlyGranularityIntroBody(int maxDays) {
+    return '按小时模式会按小时对齐 Upbit USDT 与美元兑韩元汇率，用于泡菜溢价模拟。可回看区间最长约 $maxDays 天，但比按日更细的时间粒度能减少仅靠日K时可能出现的时点与均价偏差。若更在意精度而非更长历史，可选择按小时查看。';
+  }
+
+  @override
+  String get hourlyGranularityNewBadgeSemanticLabel => '新功能：按小时图表说明';
+
+  @override
+  String get kimchiFxBuyMaxLabel => '买入最高汇率(₩)';
+
+  @override
+  String get kimchiFxBuyMaxHint => '例如 2,000';
+
+  @override
+  String get kimchiFxSellMinLabel => '卖出最低汇率(₩)';
+
+  @override
+  String get kimchiFxSellMinHint => '例如 0';
+
+  @override
+  String get kimchiFxRateLimitHelpTitle => '说明';
+
+  @override
+  String get kimchiFxRateLimitHelpTooltip => '查看说明';
+
+  @override
+  String get kimchiFxBuyMaxHelpBody => '当汇率高于或等于设定值时跳过买入，有助于改善收益。';
+
+  @override
+  String get kimchiFxSellMinHelpBody => '当汇率低于或等于设定值时跳过卖出，有助于改善收益。';
+
+  @override
+  String get kimchiBuyThresholdHelpBody =>
+      '当韩国 USDT 相对美元兑韩元汇率的泡菜溢价小于或等于该百分比时，会考虑买入。数值越低越偏向“更便宜才买”，越高则越早考虑买入。';
+
+  @override
+  String get kimchiSellThresholdHelpBody =>
+      '当溢价大于或等于该百分比时，会考虑卖出。数值越高需要溢价更大才卖，越低则对较小溢价也可能卖出。';
 }

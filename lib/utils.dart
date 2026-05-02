@@ -61,6 +61,14 @@ extension DateTimeCustomString on DateTime {
     return DateFormat('yyyy/MM/dd').format(this);
   }
 
+  /// 시뮬/차트 라벨: 시간 봉이면 년도 없이 `M/d HH:mm`, 일봉이면 [toCustomString]과 동일 계열.
+  String toSimulationUiString(bool hourlyGranularity) {
+    if (hourlyGranularity) {
+      return DateFormat('M/d HH:mm').format(this);
+    }
+    return toCustomString();
+  }
+
   bool isSameDate(DateTime other) {
     return year == other.year && month == other.month && day == other.day;
   }
@@ -78,12 +86,20 @@ class SimulationCondition {
   double get kimchiBuyThreshold => _kimchiBuyThreshold;
   double _kimchiSellThreshold = 2.5;
   double get kimchiSellThreshold => _kimchiSellThreshold;
-  bool _useExchangeRateSellWeight = false;
-  bool get useExchangeRateSellWeight => _useExchangeRateSellWeight;
   DateTime? _kimchiStartDate;
   DateTime? get kimchiStartDate => _kimchiStartDate;
   DateTime? _kimchiEndDate;
   DateTime? get kimchiEndDate => _kimchiEndDate;
+
+  /// USD/KRW가 이 값 **이상**이면 김프 매수 안 함. `0`이면 제한 없음. 기본 2,000.
+  static const double defaultKimchiFxBuyMax = 2000;
+  double _kimchiFxBuyMax = defaultKimchiFxBuyMax;
+  double get kimchiFxBuyMax => _kimchiFxBuyMax;
+
+  /// USD/KRW가 이 값 **이하**이면 김프 매도 안 함. `0`이면 제한 없음.
+  static const double defaultKimchiFxSellMin = 0;
+  double _kimchiFxSellMin = defaultKimchiFxSellMin;
+  double get kimchiFxSellMin => _kimchiFxSellMin;
 
   double _simulationInitialKrw = 1000000;
   double get simulationInitialKrw => _simulationInitialKrw;
@@ -94,14 +110,18 @@ class SimulationCondition {
           prefs.getDouble('kimchiBuyThreshold') ?? 0.5;
       instance._kimchiSellThreshold =
           prefs.getDouble('kimchiSellThreshold') ?? 2.5;
-      instance._useExchangeRateSellWeight =
-          prefs.getBool('useExchangeRateSellWeight') ?? false;
       final startDateRaw = prefs.getString('kimchiStartDate');
       final endDateRaw = prefs.getString('kimchiEndDate');
       instance._kimchiStartDate =
           startDateRaw != null ? DateTime.tryParse(startDateRaw) : null;
       instance._kimchiEndDate =
           endDateRaw != null ? DateTime.tryParse(endDateRaw) : null;
+      instance._kimchiFxBuyMax =
+          prefs.getDouble('kimchiFxBuyMax') ??
+          prefs.getDouble('kimchiFxNoBuyAbove') ??
+          defaultKimchiFxBuyMax;
+      instance._kimchiFxSellMin =
+          prefs.getDouble('kimchiFxSellMin') ?? defaultKimchiFxSellMin;
       instance._simulationInitialKrw = _readSimulationInitialKrwSync(prefs);
     });
   }
@@ -160,12 +180,6 @@ class SimulationCondition {
     _kimchiSellThreshold = value;
   }
 
-  Future<void> saveUseExchangeRateSellWeight(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('useExchangeRateSellWeight', value);
-    _useExchangeRateSellWeight = value;
-  }
-
   Future<void> saveKimchiStartDate(DateTime? value) async {
     final prefs = await SharedPreferences.getInstance();
     if (value == null) {
@@ -194,6 +208,22 @@ class SimulationCondition {
     await saveKimchiEndDate(endDate);
   }
 
+  static const double _minKimchiFxBuyMax = 0;
+  static const double _maxKimchiFxBuyMax = 999999;
+
+  Future<void> saveKimchiFxBuyMax(double value) async {
+    final v = value.clamp(_minKimchiFxBuyMax, _maxKimchiFxBuyMax);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('kimchiFxBuyMax', v);
+    _kimchiFxBuyMax = v;
+  }
+
+  Future<void> saveKimchiFxSellMin(double value) async {
+    final v = value.clamp(_minKimchiFxBuyMax, _maxKimchiFxBuyMax);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('kimchiFxSellMin', v);
+    _kimchiFxSellMin = v;
+  }
 
   Future<String?> _getFcmToken() async {
     try {
@@ -225,6 +255,19 @@ extension TodayCommentAlarmTypePrefs on TodayCommentAlarmType {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefsKey, name);
   }
+}
+
+const String _prefsHourlyGranularityIntroSeen = 'hourlyGranularityIntroSeen';
+
+/// 시간 단위 차트 안내를 확인했는지 (UserDefaults / SharedPreferences).
+Future<bool> loadHourlyGranularityIntroSeen() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getBool(_prefsHourlyGranularityIntroSeen) ?? false;
+}
+
+Future<void> saveHourlyGranularityIntroSeen(bool seen) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool(_prefsHourlyGranularityIntroSeen, seen);
 }
 
 // List<T>에 대해 안전하게 마지막 원소를 반환하는 extension

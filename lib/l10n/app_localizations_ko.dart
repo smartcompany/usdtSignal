@@ -268,9 +268,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get kimchiResetDateRange => '전체 일정';
 
   @override
-  String get useExchangeRateSellWeight => '환율 추종 매수/매도 보정';
-
-  @override
   String get failedToSaveSettings => '설정 저장에 실패했습니다.';
 
   @override
@@ -470,4 +467,58 @@ class AppLocalizationsKo extends AppLocalizations {
   String feeWithAmount(String amount) {
     return '수수료: ₩$amount';
   }
+
+  @override
+  String get chartGranularityDaily => '하루 단위';
+
+  @override
+  String get chartGranularityHourly => '시간 단위';
+
+  @override
+  String get hourlyChartLoadFailed => '시간봉 데이터를 불러오지 못했습니다.';
+
+  @override
+  String get hourlyGranularityIntroTitle => '시간 단위 안내';
+
+  @override
+  String hourlyGranularityIntroBody(int maxDays) {
+    return '시간 단위는 시간봉 기준으로 업비트 USDT와 원·달러 환율을 맞춰 김치 프리미엄 시뮬레이션을 실행합니다. 제공 구간은 최대 약 $maxDays일로 제한되지만, 하루 단위보다 촘촘한 시점에서 가격을 맞추므로 일봉에서만 볼 때 생길 수 있는 시점·평균화에 따른 오차를 줄이는 데 도움이 됩니다. 기간은 짧아지지만 더 정밀한 해석이 필요할 때 활용해 보세요.';
+  }
+
+  @override
+  String get hourlyGranularityNewBadgeSemanticLabel => '새 기능: 시간 단위 차트 안내';
+
+  @override
+  String get kimchiFxBuyMaxLabel => '매수 최대 환율(₩)';
+
+  @override
+  String get kimchiFxBuyMaxHint => '예: 2,000';
+
+  @override
+  String get kimchiFxSellMinLabel => '매도 최저 환율(₩)';
+
+  @override
+  String get kimchiFxSellMinHint => '예: 0';
+
+  @override
+  String get kimchiFxRateLimitHelpTitle => '설명';
+
+  @override
+  String get kimchiFxRateLimitHelpTooltip => '설명 보기';
+
+  @override
+  String get kimchiFxBuyMaxHelpBody =>
+      '환율이 설정된 이상 보다 높을 경우 매수를 방지 해서 수익률을 개선합니다';
+
+  @override
+  String get kimchiFxSellMinHelpBody =>
+      '설정된 환율보다 낮을 경우 매도를 방지해서 수익률을 개선 할 수 있습니다';
+
+  @override
+  String get kimchiBuyThresholdHelpBody =>
+      '김치 프리미엄(한국 USDT가 달러 환율 대비 얼마나 비싼지)이 입력한 % 이하일 때 매수 신호를 검토합니다. 값을 낮추면 더 싸게 보일 때만 매수하려 하고, 높이면 상대적으로 더 일찍 매수하는 설정에 가깝습니다.';
+
+  @override
+  String get kimchiSellThresholdHelpBody =>
+      '김치 프리미엄이 입력한 % 이상일 때 매도 신호를 검토합니다. 값을 높이면 프리미엄이 더 커졌을 때만 매도하려 하고, 낮추면 비교적 작은 프리미엄에서도 매도 후보가 됩니다.';
 }

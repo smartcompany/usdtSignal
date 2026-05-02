@@ -269,10 +269,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kimchiResetDateRange => 'Full period';
 
   @override
-  String get useExchangeRateSellWeight =>
-      'Adjust buy/sell thresholds by exchange rate';
-
-  @override
   String get failedToSaveSettings => 'Failed to save settings.';
 
   @override
@@ -482,4 +478,59 @@ class AppLocalizationsEn extends AppLocalizations {
   String feeWithAmount(String amount) {
     return 'Fee: ₩$amount';
   }
+
+  @override
+  String get chartGranularityDaily => 'By day';
+
+  @override
+  String get chartGranularityHourly => 'By hour';
+
+  @override
+  String get hourlyChartLoadFailed => 'Could not load hourly chart data.';
+
+  @override
+  String get hourlyGranularityIntroTitle => 'About hourly charts';
+
+  @override
+  String hourlyGranularityIntroBody(int maxDays) {
+    return 'Hourly mode aligns Upbit USDT with USD/KRW by the hour for K-premium simulation. The history window is limited to about $maxDays days, but finer timestamps reduce the timing and averaging gaps you can get on daily candles alone. Trade-off: a shorter range for a closer, more precise read—use it when that matters to you.';
+  }
+
+  @override
+  String get hourlyGranularityNewBadgeSemanticLabel =>
+      'New: hourly chart guide available';
+
+  @override
+  String get kimchiFxBuyMaxLabel => 'Max buy FX (₩)';
+
+  @override
+  String get kimchiFxBuyMaxHint => 'e.g. 2,000';
+
+  @override
+  String get kimchiFxSellMinLabel => 'Min sell FX (₩)';
+
+  @override
+  String get kimchiFxSellMinHint => 'e.g. 0';
+
+  @override
+  String get kimchiFxRateLimitHelpTitle => 'About';
+
+  @override
+  String get kimchiFxRateLimitHelpTooltip => 'Show explanation';
+
+  @override
+  String get kimchiFxBuyMaxHelpBody =>
+      'When the exchange rate is at or above this value, K-premium buys are skipped to help improve returns.';
+
+  @override
+  String get kimchiFxSellMinHelpBody =>
+      'When the exchange rate is at or below this value, K-premium sells are skipped to help improve returns.';
+
+  @override
+  String get kimchiBuyThresholdHelpBody =>
+      'Kimchi premium (how much Korea’s USDT price sits above the USD/KRW rate) at or below this percent is treated as a buy signal. Lower values aim to buy when the premium is smaller; higher values allow buying sooner.';
+
+  @override
+  String get kimchiSellThresholdHelpBody =>
+      'Premium at or above this percent is treated as a sell signal. Higher values wait for a larger premium before selling; lower values may sell on smaller premiums.';
 }

@@ -92,7 +92,6 @@
   "kimchiStartDate": "开始日期",
   "kimchiEndDate": "结束日期",
   "kimchiResetDateRange": "全部期间",
-  "useExchangeRateSellWeight": "按汇率调整买入/卖出阈值",
   "failedToSaveSettings": "保存设置失败。",
   "buyPrice": "买入价格",
   "sellPrice": "卖出价格",
@@ -186,5 +185,28 @@
         "type": "String"
       }
     }
-  }
+  },
+  "chartGranularityDaily": "按日",
+  "chartGranularityHourly": "按小时",
+  "hourlyChartLoadFailed": "小时线图表数据加载失败。",
+  "hourlyGranularityIntroTitle": "关于「按小时」",
+  "hourlyGranularityIntroBody": "按小时模式会按小时对齐 Upbit USDT 与美元兑韩元汇率，用于泡菜溢价模拟。可回看区间最长约 {maxDays} 天，但比按日更细的时间粒度能减少仅靠日K时可能出现的时点与均价偏差。若更在意精度而非更长历史，可选择按小时查看。",
+  "@hourlyGranularityIntroBody": {
+    "placeholders": {
+      "maxDays": {
+        "type": "int"
+      }
+    }
+  },
+  "hourlyGranularityNewBadgeSemanticLabel": "新功能：按小时图表说明",
+  "kimchiFxBuyMaxLabel": "买入最高汇率(₩)",
+  "kimchiFxBuyMaxHint": "例如 2,000",
+  "kimchiFxSellMinLabel": "卖出最低汇率(₩)",
+  "kimchiFxSellMinHint": "例如 0",
+  "kimchiFxRateLimitHelpTitle": "说明",
+  "kimchiFxRateLimitHelpTooltip": "查看说明",
+  "kimchiFxBuyMaxHelpBody": "当汇率高于或等于设定值时跳过买入，有助于改善收益。",
+  "kimchiFxSellMinHelpBody": "当汇率低于或等于设定值时跳过卖出，有助于改善收益。",
+  "kimchiBuyThresholdHelpBody": "当韩国 USDT 相对美元兑韩元汇率的泡菜溢价小于或等于该百分比时，会考虑买入。数值越低越偏向“更便宜才买”，越高则越早考虑买入。",
+  "kimchiSellThresholdHelpBody": "当溢价大于或等于该百分比时，会考虑卖出。数值越高需要溢价更大才卖，越低则对较小溢价也可能卖出。"
 }

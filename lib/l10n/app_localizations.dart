@@ -604,12 +604,6 @@ abstract class AppLocalizations {
   /// **'전체 일정'**
   String get kimchiResetDateRange;
 
-  /// No description provided for @useExchangeRateSellWeight.
-  ///
-  /// In ko, this message translates to:
-  /// **'환율 추종 매수/매도 보정'**
-  String get useExchangeRateSellWeight;
-
   /// No description provided for @failedToSaveSettings.
   ///
   /// In ko, this message translates to:
@@ -987,6 +981,102 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'수수료: ₩{amount}'**
   String feeWithAmount(String amount);
+
+  /// No description provided for @chartGranularityDaily.
+  ///
+  /// In ko, this message translates to:
+  /// **'하루 단위'**
+  String get chartGranularityDaily;
+
+  /// No description provided for @chartGranularityHourly.
+  ///
+  /// In ko, this message translates to:
+  /// **'시간 단위'**
+  String get chartGranularityHourly;
+
+  /// No description provided for @hourlyChartLoadFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'시간봉 데이터를 불러오지 못했습니다.'**
+  String get hourlyChartLoadFailed;
+
+  /// No description provided for @hourlyGranularityIntroTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'시간 단위 안내'**
+  String get hourlyGranularityIntroTitle;
+
+  /// No description provided for @hourlyGranularityIntroBody.
+  ///
+  /// In ko, this message translates to:
+  /// **'시간 단위는 시간봉 기준으로 업비트 USDT와 원·달러 환율을 맞춰 김치 프리미엄 시뮬레이션을 실행합니다. 제공 구간은 최대 약 {maxDays}일로 제한되지만, 하루 단위보다 촘촘한 시점에서 가격을 맞추므로 일봉에서만 볼 때 생길 수 있는 시점·평균화에 따른 오차를 줄이는 데 도움이 됩니다. 기간은 짧아지지만 더 정밀한 해석이 필요할 때 활용해 보세요.'**
+  String hourlyGranularityIntroBody(int maxDays);
+
+  /// No description provided for @hourlyGranularityNewBadgeSemanticLabel.
+  ///
+  /// In ko, this message translates to:
+  /// **'새 기능: 시간 단위 차트 안내'**
+  String get hourlyGranularityNewBadgeSemanticLabel;
+
+  /// No description provided for @kimchiFxBuyMaxLabel.
+  ///
+  /// In ko, this message translates to:
+  /// **'매수 최대 환율(₩)'**
+  String get kimchiFxBuyMaxLabel;
+
+  /// No description provided for @kimchiFxBuyMaxHint.
+  ///
+  /// In ko, this message translates to:
+  /// **'예: 2,000'**
+  String get kimchiFxBuyMaxHint;
+
+  /// No description provided for @kimchiFxSellMinLabel.
+  ///
+  /// In ko, this message translates to:
+  /// **'매도 최저 환율(₩)'**
+  String get kimchiFxSellMinLabel;
+
+  /// No description provided for @kimchiFxSellMinHint.
+  ///
+  /// In ko, this message translates to:
+  /// **'예: 0'**
+  String get kimchiFxSellMinHint;
+
+  /// No description provided for @kimchiFxRateLimitHelpTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'설명'**
+  String get kimchiFxRateLimitHelpTitle;
+
+  /// No description provided for @kimchiFxRateLimitHelpTooltip.
+  ///
+  /// In ko, this message translates to:
+  /// **'설명 보기'**
+  String get kimchiFxRateLimitHelpTooltip;
+
+  /// No description provided for @kimchiFxBuyMaxHelpBody.
+  ///
+  /// In ko, this message translates to:
+  /// **'환율이 설정된 이상 보다 높을 경우 매수를 방지 해서 수익률을 개선합니다'**
+  String get kimchiFxBuyMaxHelpBody;
+
+  /// No description provided for @kimchiFxSellMinHelpBody.
+  ///
+  /// In ko, this message translates to:
+  /// **'설정된 환율보다 낮을 경우 매도를 방지해서 수익률을 개선 할 수 있습니다'**
+  String get kimchiFxSellMinHelpBody;
+
+  /// No description provided for @kimchiBuyThresholdHelpBody.
+  ///
+  /// In ko, this message translates to:
+  /// **'김치 프리미엄(한국 USDT가 달러 환율 대비 얼마나 비싼지)이 입력한 % 이하일 때 매수 신호를 검토합니다. 값을 낮추면 더 싸게 보일 때만 매수하려 하고, 높이면 상대적으로 더 일찍 매수하는 설정에 가깝습니다.'**
+  String get kimchiBuyThresholdHelpBody;
+
+  /// No description provided for @kimchiSellThresholdHelpBody.
+  ///
+  /// In ko, this message translates to:
+  /// **'김치 프리미엄이 입력한 % 이상일 때 매도 신호를 검토합니다. 값을 높이면 프리미엄이 더 커졌을 때만 매도하려 하고, 낮추면 비교적 작은 프리미엄에서도 매도 후보가 됩니다.'**
+  String get kimchiSellThresholdHelpBody;
 }
 
 class _AppLocalizationsDelegate
