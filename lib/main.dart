@@ -610,22 +610,11 @@ class _MyHomePageState extends State<MyHomePage>
 
       if (!mounted) return;
 
-      if (_chartGranularity == MainChartGranularity.hourly) {
-        setState(() {
-          if (usdt != null) {
-            _headlineSpotUsdt = usdt;
-          }
-          if (exchangeRate != null) {
-            _headlineSpotFx = exchangeRate;
-          }
-        });
-        return;
-      }
-
       if (usdtChartData.isEmpty || usdtMap.isEmpty || exchangeRates.isEmpty) {
         return;
       }
 
+      /// 일·시간 단위 공통: 마지막 캔들(또는 시간봉)에 폴링 시세 반영해 차트·김프가 서버 스냅샷보다 현재가에 가깝게 유지됨.
       setState(() {
         if (usdt != null && usdtChartData.isNotEmpty) {
           usdtChartData.safeLast?.close = usdt;

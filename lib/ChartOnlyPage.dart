@@ -75,6 +75,9 @@ class ChartOnlyPage extends StatefulWidget {
 }
 
 class _ChartOnlyPageState extends State<ChartOnlyPage> {
+  /// 상단 차트 패널과 하단 체크 카드의 좌우 인셋을 동일하게 유지 (시각 정렬).
+  static const double _panelPadH = 16;
+
   bool showKimchiPremium = true;
   bool showAITrading = false;
   bool showGimchiTrading = false;
@@ -252,6 +255,7 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
                 vertical: 8,
               ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _buildChartCard(chartHeight, l10n(context)),
                   const SizedBox(height: 8),
@@ -302,7 +306,15 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
                   ),
                 ],
               ),
-              child: _buildMainChart(l10n, kimchiPlotBands),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  _panelPadH,
+                  8,
+                  _panelPadH,
+                  10,
+                ),
+                child: _buildMainChart(l10n, kimchiPlotBands),
+              ),
             ),
           ),
         ),
@@ -468,7 +480,7 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
         position: LegendPosition.bottom,
         textStyle: TextStyle(color: axisLabelColor, fontSize: 12),
       ),
-      margin: const EdgeInsets.all(10),
+      margin: EdgeInsets.zero,
       primaryXAxis: _buildPrimaryXAxis(kimchiPlotBands, cs),
       primaryYAxis: _buildPrimaryYAxis(cs),
       axes: _buildAxes(cs),
@@ -815,6 +827,7 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
+          width: double.infinity,
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -838,7 +851,12 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+            padding: const EdgeInsets.fromLTRB(
+              _panelPadH,
+              12,
+              _panelPadH,
+              12,
+            ),
             child: Wrap(
               alignment: WrapAlignment.start,
               spacing: 16,
