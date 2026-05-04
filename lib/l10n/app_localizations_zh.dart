@@ -176,6 +176,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get totalGain => '总收益率';
 
   @override
+  String get annualAvgReturn => '年化平均收益';
+
+  @override
   String get extimatedYearGain => '预估年收益率';
 
   @override
@@ -445,6 +448,19 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get kimchiSimulatedTradeTitle => '김프 모의 투자';
+
+  @override
+  String get shareSimulationButton => '分享';
+
+  @override
+  String get simulationCompoundInterestTitle => '复利计算';
+
+  @override
+  String get simulationCompoundInterestHelpTooltip => '复利说明';
+
+  @override
+  String get simulationCompoundInterestHelpBody =>
+      '开启：卖出后用累计资金再买入。关闭：每次买入仅使用初始资金。';
 
   @override
   String get profitRate => '收益率';

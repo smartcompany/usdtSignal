@@ -430,6 +430,12 @@ abstract class AppLocalizations {
   /// **'총 수익률'**
   String get totalGain;
 
+  /// No description provided for @annualAvgReturn.
+  ///
+  /// In ko, this message translates to:
+  /// **'연 평균 수익률'**
+  String get annualAvgReturn;
+
   /// No description provided for @extimatedYearGain.
   ///
   /// In ko, this message translates to:
@@ -951,6 +957,30 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'김프 모의 투자'**
   String get kimchiSimulatedTradeTitle;
+
+  /// No description provided for @shareSimulationButton.
+  ///
+  /// In ko, this message translates to:
+  /// **'공유하기'**
+  String get shareSimulationButton;
+
+  /// No description provided for @simulationCompoundInterestTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'복리 계산'**
+  String get simulationCompoundInterestTitle;
+
+  /// No description provided for @simulationCompoundInterestHelpTooltip.
+  ///
+  /// In ko, this message translates to:
+  /// **'복리 계산 설명'**
+  String get simulationCompoundInterestHelpTooltip;
+
+  /// No description provided for @simulationCompoundInterestHelpBody.
+  ///
+  /// In ko, this message translates to:
+  /// **'켜면 매도 후 누적 금액으로 다시 매수합니다. 끄면 매수마다 초기 자본만 사용합니다.'**
+  String get simulationCompoundInterestHelpBody;
 
   /// No description provided for @profitRate.
   ///

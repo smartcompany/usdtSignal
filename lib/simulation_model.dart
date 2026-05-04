@@ -37,7 +37,10 @@ class SimulationModel {
     double initialKRW = 1000000,
     double? buyFee,
     double? sellFee,
+    bool? useCompoundInterest,
   }) {
+    final compound =
+        useCompoundInterest ?? SimulationCondition.instance.simulationCompoundInterest;
     // 날짜 오름차순 정렬
     strategyList.sort((a, b) {
       final dateA = a['analysis_date'];
@@ -120,6 +123,8 @@ class SimulationModel {
           simResults,
           buyDate,
           usdExchangeRateMap,
+          initialKRW: initialKRW,
+          useCompoundInterest: compound,
           buyFee: buyFee,
           sellFee: sellFee,
         );
@@ -164,15 +169,14 @@ class SimulationModel {
     List<SimulationResult> simResults,
     DateTime? buyDate,
     Map<DateTime, double> usdExchangeRateMap, {
+    required double initialKRW,
+    required bool useCompoundInterest,
     double? buyFee,
     double? sellFee,
   }) {
     print('Sell condition met: sellDate=$sellDate anaysisDate=$date');
 
     double usdtAmount = totalKRW / buyPrice;
-    double? finalKRW;
-    double? profit;
-    double? profitRate;
 
     // 매도 시 수수료 적용: 실제 매도 금액 = 매도 금액 * (1 - 수수료율)
     double actualSellPrice = sellPrice ?? 0;
@@ -186,12 +190,12 @@ class SimulationModel {
       print('매도 수수료 미적용: sellFee=$sellFee');
     }
 
-    finalKRW = usdtAmount * actualSellPrice; // 매도 시 최종 원화 계산
-    profit = finalKRW - totalKRW;
-    profitRate = profit / totalKRW * 100;
-    totalKRW = finalKRW; // 누적 투자금 갱신(복리)
+    final soldKrw = usdtAmount * actualSellPrice; // 매도 시 최종 원화
+    final profit = soldKrw - totalKRW;
+    final profitRate = profit / totalKRW * 100;
+    totalKRW = useCompoundInterest ? soldKrw : initialKRW; // 복리 vs 매수마다 초기 자본만
     print(
-      'Transaction complete: finalKRW=$finalKRW, profit=$profit, profitRate=$profitRate, sellPrice(원래)=${sellPrice ?? 0}, actualSellPrice(수수료적용)=$actualSellPrice',
+      'Transaction complete: finalKRW=$soldKrw, profit=$profit, profitRate=$profitRate, sellPrice(원래)=${sellPrice ?? 0}, actualSellPrice(수수료적용)=$actualSellPrice',
     );
 
     simResults.add(
@@ -203,7 +207,7 @@ class SimulationModel {
         sellPrice: sellPrice,
         profit: profit,
         profitRate: profitRate,
-        finalKRW: finalKRW,
+        finalKRW: soldKrw,
         finalUSDT: null,
         usdExchangeRateAtBuy: usdExchangeRateMap[buyDate],
         usdExchangeRateAtSell: usdExchangeRateMap[sellDate],
@@ -233,7 +237,10 @@ class SimulationModel {
     double initialKRW = 1000000,
     double? buyFee,
     double? sellFee,
+    bool? useCompoundInterest,
   }) {
+    final compound =
+        useCompoundInterest ?? SimulationCondition.instance.simulationCompoundInterest;
     List<SimulationResult> simResults = [];
     double totalKRW = initialKRW;
     SimulationResult? unselledResult;
@@ -372,8 +379,8 @@ class SimulationModel {
           ),
         );
 
-        // 다음 거래를 위해 초기화 (복리)
-        totalKRW = finalKRW;
+        // 다음 거래: 복리면 매도 후 금액, 아니면 초기 자본만 매수에 사용
+        totalKRW = compound ? finalKRW : initialKRW;
         buyDate = null;
         buyPrice = null;
         sellPrice = null;
@@ -426,10 +433,59 @@ class SimulationModel {
     return null;
   }
 
+  /// 비복리: 완료된 매도마다 `profit` 합산 + 미매도 구간은 평가금(`finalKRW - initialKRW`).
+  static double nonCompoundTotalProfitKrw(
+    List<SimulationResult> results,
+    double initialKRW,
+  ) {
+    var sum = 0.0;
+    for (final r in results) {
+      if (r.sellDate != null) {
+        sum += r.profit;
+      } else {
+        sum += r.finalKRW - initialKRW;
+      }
+    }
+    return sum;
+  }
+
+  /// 총 수익률(%). 복리는 마지막 누적 대비, 비복리는 라운드별 손익 합 / 초기자본.
+  static double totalReturnPercent(
+    List<SimulationResult> results,
+    double initialKRW, {
+    bool? useCompoundInterest,
+  }) {
+    if (results.isEmpty || initialKRW <= 0) return 0;
+    final compound =
+        useCompoundInterest ??
+        SimulationCondition.instance.simulationCompoundInterest;
+    if (compound) {
+      return (results.last.finalKRW / initialKRW - 1) * 100;
+    }
+    return (nonCompoundTotalProfitKrw(results, initialKRW) / initialKRW) * 100;
+  }
+
+  /// 누적(또는 평가) 최종 원화. 비복리는 초기자본 + 실현·평가 손익 합.
+  static double totalEndingWealthKrw(
+    List<SimulationResult> results,
+    double initialKRW, {
+    bool? useCompoundInterest,
+  }) {
+    if (results.isEmpty) return initialKRW;
+    final compound =
+        useCompoundInterest ??
+        SimulationCondition.instance.simulationCompoundInterest;
+    if (compound) {
+      return results.last.finalKRW;
+    }
+    return initialKRW + nonCompoundTotalProfitKrw(results, initialKRW);
+  }
+
   // 시뮬레이션 결과를 기반으로 수익률 데이터를 계산하는 내부 함수
   static SimulationYieldData _calculateYieldData(
     List<SimulationResult> results, {
     required double initialKRW,
+    bool? useCompoundInterest,
   }) {
     if (results.isEmpty) {
       return SimulationYieldData(
@@ -451,9 +507,16 @@ class SimulationModel {
     }
 
     final days = lastDate.difference(firstDate).inDays;
-    final totalReturn =
-        (results.last.finalKRW / initialKRW - 1) * 100; // 총 수익률 (%)
-    final annualYield = calculateAnnualYield(results, initialKRW: initialKRW);
+    final totalReturn = totalReturnPercent(
+      results,
+      initialKRW,
+      useCompoundInterest: useCompoundInterest,
+    );
+    final annualYield = calculateAnnualYield(
+      results,
+      initialKRW: initialKRW,
+      useCompoundInterest: useCompoundInterest,
+    );
 
     return SimulationYieldData(
       totalReturn: totalReturn,
@@ -466,6 +529,7 @@ class SimulationModel {
   static double calculateAnnualYield(
     List<SimulationResult> results, {
     required double initialKRW,
+    bool? useCompoundInterest,
   }) {
     if (results.isEmpty) return 0.0;
 
@@ -477,9 +541,15 @@ class SimulationModel {
     if (days < 1) return 0.0;
 
     final years = days / 365.0;
-    final totalReturn = results.last.finalKRW / initialKRW;
+    final compound =
+        useCompoundInterest ??
+        SimulationCondition.instance.simulationCompoundInterest;
+    final double wealthRatio = compound
+        ? results.last.finalKRW / initialKRW
+        : (initialKRW + nonCompoundTotalProfitKrw(results, initialKRW)) /
+            initialKRW;
     final annualYield =
-        (years > 0) ? (pow(totalReturn, 1 / years) - 1) * 100 : 0.0;
+        (years > 0) ? (pow(wealthRatio, 1 / years) - 1) * 100 : 0.0;
 
     return (annualYield.isNaN || annualYield.isInfinite ? 0.0 : annualYield)
         .toDouble();
@@ -492,6 +562,7 @@ class SimulationModel {
     double initialKRW = 1000000,
     double? buyFee,
     double? sellFee,
+    bool? useCompoundInterest,
   }) {
     final results = SimulationModel.simulateResults(
       usdExchangeRates,
@@ -500,8 +571,13 @@ class SimulationModel {
       initialKRW: initialKRW,
       buyFee: buyFee,
       sellFee: sellFee,
+      useCompoundInterest: useCompoundInterest,
     );
-    return _calculateYieldData(results, initialKRW: initialKRW);
+    return _calculateYieldData(
+      results,
+      initialKRW: initialKRW,
+      useCompoundInterest: useCompoundInterest,
+    );
   }
 
   // 김치 시뮬레이션 수익률 계산
@@ -513,6 +589,7 @@ class SimulationModel {
     double initialKRW = 1000000,
     double? buyFee,
     double? sellFee,
+    bool? useCompoundInterest,
   }) {
     final simResults = gimchiSimulateResults(
       usdExchangeRates,
@@ -522,9 +599,14 @@ class SimulationModel {
       initialKRW: initialKRW,
       buyFee: buyFee,
       sellFee: sellFee,
+      useCompoundInterest: useCompoundInterest,
     );
 
-    return _calculateYieldData(simResults, initialKRW: initialKRW);
+    return _calculateYieldData(
+      simResults,
+      initialKRW: initialKRW,
+      useCompoundInterest: useCompoundInterest,
+    );
   }
 
   // 다음 매수/매도 시점 가져오기 (현재 가격 기준으로 하나만 반환)

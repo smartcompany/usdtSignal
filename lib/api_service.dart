@@ -791,6 +791,7 @@ enum UserDataKey {
   gimchiFxBuyMax,
   gimchiFxSellMin,
   simulationInitialKrw,
+  simulationCompoundInterest,
 }
 
 extension UserDataKeyExt on UserDataKey {
@@ -808,6 +809,8 @@ extension UserDataKeyExt on UserDataKey {
         return 'kimchiFxSellMin';
       case UserDataKey.simulationInitialKrw:
         return 'simulationInitialKrw';
+      case UserDataKey.simulationCompoundInterest:
+        return 'simulationCompoundInterest';
     }
   }
 }

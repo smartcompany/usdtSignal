@@ -177,6 +177,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get totalGain => 'Total Gain';
 
   @override
+  String get annualAvgReturn => 'Annual avg. return';
+
+  @override
   String get extimatedYearGain => 'Est. %/yr';
 
   @override
@@ -459,6 +462,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kimchiSimulatedTradeTitle => 'K-Premium Simulated Trade';
+
+  @override
+  String get shareSimulationButton => 'Share';
+
+  @override
+  String get simulationCompoundInterestTitle => 'Compound returns';
+
+  @override
+  String get simulationCompoundInterestHelpTooltip => 'About compound mode';
+
+  @override
+  String get simulationCompoundInterestHelpBody =>
+      'When on, each buy uses the full balance after the previous sell. When off, each buy uses only the initial capital.';
 
   @override
   String get profitRate => 'Profit Rate';

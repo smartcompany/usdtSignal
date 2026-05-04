@@ -1,9 +1,14 @@
+import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 import 'package:usdt_signal/ChartOnlyPage.dart'; // ChartOnlyPageModel import 추가
+import 'package:share_plus/share_plus.dart';
 import 'package:usdt_signal/api_service.dart';
+import 'package:usdt_signal/l10n/app_localizations.dart';
 import 'package:usdt_signal/simulation_model.dart';
 import 'package:usdt_signal/strategy_history_page.dart';
 import 'utils.dart';
@@ -75,10 +80,7 @@ class _ThousandsSeparatorDigitsFormatter extends TextInputFormatter {
 // ============================================================================
 
 class _SimUi {
-  static const accentGradient = [
-    Color(0xFF667EEA),
-    Color(0xFF764BA2),
-  ];
+  static const accentGradient = [Color(0xFF667EEA), Color(0xFF764BA2)];
 
   static List<Color> pageBackground(ColorScheme cs) => [
     cs.surface,
@@ -126,10 +128,8 @@ class _TitleStyles {
 }
 
 class _BodyStyles {
-  static TextStyle bodyText(BuildContext context) => TextStyle(
-    fontSize: 18,
-    color: Theme.of(context).colorScheme.onSurface,
-  );
+  static TextStyle bodyText(BuildContext context) =>
+      TextStyle(fontSize: 18, color: Theme.of(context).colorScheme.onSurface);
 
   static TextStyle labelText(BuildContext context) => TextStyle(
     fontSize: 16,
@@ -326,11 +326,7 @@ class SimulationPage extends StatefulWidget {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text(
-                        l10n(context).buyBase,
-                        maxLines: 2,
-                        softWrap: true,
-                      ),
+                      Text(l10n(context).buyBase, maxLines: 2, softWrap: true),
                       const SizedBox(width: 12),
                       Expanded(
                         child: TextFormField(
@@ -370,11 +366,7 @@ class SimulationPage extends StatefulWidget {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text(
-                        l10n(context).sellBase,
-                        maxLines: 2,
-                        softWrap: true,
-                      ),
+                      Text(l10n(context).sellBase, maxLines: 2, softWrap: true),
                       const SizedBox(width: 12),
                       Expanded(
                         child: TextFormField(
@@ -586,8 +578,7 @@ class SimulationPage extends StatefulWidget {
                       RegExp(r'[^\d]'),
                       '',
                     );
-                    final fxSellParsed =
-                        double.tryParse(fxSellDigits) ?? 0.0;
+                    final fxSellParsed = double.tryParse(fxSellDigits) ?? 0.0;
 
                     Navigator.of(context).pop({
                       'buy': buy,
@@ -633,9 +624,7 @@ class SimulationPage extends StatefulWidget {
           endDate: endDate,
         );
         await SimulationCondition.instance.saveKimchiFxBuyMax(kimchiFxBuyMax);
-        await SimulationCondition.instance.saveKimchiFxSellMin(
-          kimchiFxSellMin,
-        );
+        await SimulationCondition.instance.saveKimchiFxSellMin(kimchiFxSellMin);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(l10n(context).failedToSaveSettings)),
@@ -806,9 +795,8 @@ class _SimulationPageState extends State<SimulationPage>
           ),
           TextButton(
             onPressed: () {
-              final raw = controller.text
-                  .replaceAll(RegExp(r'[^\d]'), '')
-                  .trim();
+              final raw =
+                  controller.text.replaceAll(RegExp(r'[^\d]'), '').trim();
               final v = double.tryParse(raw);
               if (v == null || v < 10000 || v > 1000000000) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -904,10 +892,7 @@ class _SimulationPageState extends State<SimulationPage>
                     colors: _SimUi.glassCardFill(cs),
                   ),
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: _SimUi.glassBorder(cs),
-                    width: 1.5,
-                  ),
+                  border: Border.all(color: _SimUi.glassBorder(cs), width: 1.5),
                   boxShadow: [
                     BoxShadow(
                       color: cs.primary.withValues(alpha: 0.22),
@@ -929,9 +914,9 @@ class _SimulationPageState extends State<SimulationPage>
                         children: [
                           Text(
                             '${displayDate.toSimulationUiString(widget.hourlyGranularity)} ${l10n(context).strategy}',
-                            style: _TitleStyles.dialogTitle(context).copyWith(
-                              fontSize: 18,
-                            ),
+                            style: _TitleStyles.dialogTitle(
+                              context,
+                            ).copyWith(fontSize: 18),
                           ),
                           const Spacer(),
                           IconButton(
@@ -1013,10 +998,7 @@ class _SimulationPageState extends State<SimulationPage>
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        iconTheme: IconThemeData(
-          color: cs.onSurface,
-          size: 22,
-        ),
+        iconTheme: IconThemeData(color: cs.onSurface, size: 22),
         flexibleSpace: ClipRRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
@@ -1031,10 +1013,7 @@ class _SimulationPageState extends State<SimulationPage>
                   ],
                 ),
                 border: Border(
-                  bottom: BorderSide(
-                    color: _SimUi.glassBorder(cs),
-                    width: 0.5,
-                  ),
+                  bottom: BorderSide(color: _SimUi.glassBorder(cs), width: 0.5),
                 ),
               ),
             ),
@@ -1080,19 +1059,15 @@ class _SimulationPageState extends State<SimulationPage>
             children: [
               // 메인 콘텐츠
               loading
-                  ? Center(
-                      child: CircularProgressIndicator(
-                        color: cs.primary,
-                      ),
-                    )
+                  ? Center(child: CircularProgressIndicator(color: cs.primary))
                   : error != null
                   ? Center(
-                      child: Text(
-                        '${l10n(context).error}: $error',
-                        style: TextStyle(color: cs.error),
-                        textAlign: TextAlign.center,
-                      ),
-                    )
+                    child: Text(
+                      '${l10n(context).error}: $error',
+                      style: TextStyle(color: cs.error),
+                      textAlign: TextAlign.center,
+                    ),
+                  )
                   : SingleChildScrollView(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
@@ -1111,9 +1086,7 @@ class _SimulationPageState extends State<SimulationPage>
                               padding: const EdgeInsets.all(24.0),
                               child: Text(
                                 l10n(context).noStrategyData,
-                                style: TextStyle(
-                                  color: cs.onSurfaceVariant,
-                                ),
+                                style: TextStyle(color: cs.onSurfaceVariant),
                                 textAlign: TextAlign.center,
                               ),
                             ),
@@ -1294,6 +1267,135 @@ class _SimulationPageState extends State<SimulationPage>
     );
   }
 
+  /// iPad 등에서 popover 앵커용. 버튼 위젯의 [context]를 넘기세요.
+  Rect _sharePositionOrigin(BuildContext originContext) {
+    final box = originContext.findRenderObject() as RenderBox?;
+    if (box != null && box.hasSize) {
+      final r = box.localToGlobal(Offset.zero) & box.size;
+      if (r.width > 0 && r.height > 0) return r;
+    }
+    final s = MediaQuery.sizeOf(originContext);
+    return Rect.fromCenter(
+      center: Offset(s.width / 2, s.height / 2),
+      width: 1,
+      height: 1,
+    );
+  }
+
+  String _shareSimulationHeadline(AppLocalizations loc) {
+    final appName = loc.usdt_signal;
+    final mode =
+        widget.simulationType == SimulationType.ai
+            ? loc.aiSimulatedTradeTitle
+            : loc.kimchiSimulatedTradeTitle;
+    return '$appName · $mode';
+  }
+
+  /// iOS share_plus는 text 전용일 때 [LPLinkMetadata]에 이미지를 넣지 않아 공유 시트가
+  /// 기본 격자 아이콘만 씀. 이미지 파일을 같이 넘기면 아이콘 미리보기가 붙음.
+  Future<XFile?> _iosSharePreviewIconAsset() async {
+    if (!Platform.isIOS) return null;
+    try {
+      final data = await rootBundle.load('assets/icon/app_icon.png');
+      final bytes = data.buffer.asUint8List();
+      final dir = await getTemporaryDirectory();
+      final path = '${dir.path}/share_app_icon_${const Uuid().v4()}.png';
+      await File(path).writeAsBytes(bytes);
+      return XFile(path, mimeType: 'image/png');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _buildShareSimulationBody(AppLocalizations loc) {
+    final headline = _shareSimulationHeadline(loc);
+    final cap = '₩${krwFormat.format(_initialCapitalKrw.round())}';
+    final url = Uri.parse(ApiService.host).resolve('/applink').toString();
+    if (results.isEmpty) {
+      return [
+        headline,
+        loc.initialCapital(cap),
+        '${loc.tradingPerioid}: ${loc.dash}',
+        '${loc.totalGain}: ${loc.dash}',
+        '${loc.annualAvgReturn}: ${loc.dash}',
+        '${loc.stackedFinalKRW}: ${loc.dash}',
+        url,
+      ].join('\n');
+    }
+    final startDate = _simDateLabel(results.first.buyDate, empty: '');
+    final endDate = _simDateLabel(results.last.analysisDate, empty: '');
+    final period = '$startDate - $endDate';
+    final compound = SimulationCondition.instance.simulationCompoundInterest;
+    final endWealth = SimulationModel.totalEndingWealthKrw(
+      results,
+      _initialCapitalKrw,
+      useCompoundInterest: compound,
+    );
+    final totalGain = endWealth - _initialCapitalKrw;
+    final totalGainPct = SimulationModel.totalReturnPercent(
+      results,
+      _initialCapitalKrw,
+      useCompoundInterest: compound,
+    );
+    final gainLine =
+        '${totalGain >= 0 ? '+' : ''}${krwFormat.format(totalGain.round())} '
+        '(${totalGainPct >= 0 ? '+' : ''}${totalGainPct.toStringAsFixed(2)}%)';
+    var annualYieldLine = '0.00%';
+    final annualYield = SimulationModel.calculateAnnualYield(
+      results,
+      initialKRW: _initialCapitalKrw,
+      useCompoundInterest: compound,
+    );
+    if (!annualYield.isNaN &&
+        !annualYield.isInfinite &&
+        annualYield != 0.0) {
+      annualYieldLine =
+          '${annualYield >= 0 ? '+' : ''}${annualYield.toStringAsFixed(2)}%';
+    }
+    final finalKrw = '₩${krwFormat.format(endWealth.round())}';
+    return [
+      headline,
+      loc.initialCapital(cap),
+      '${loc.tradingPerioid}: $period',
+      '${loc.totalGain}: $gainLine',
+      '${loc.annualAvgReturn}: $annualYieldLine',
+      '${loc.stackedFinalKRW}: $finalKrw',
+      url,
+    ].join('\n');
+  }
+
+  Future<void> _shareSimulationResults(BuildContext originContext) async {
+    if (loading) return;
+    final loc = l10n(originContext);
+    final text = _buildShareSimulationBody(loc);
+    final title = _shareSimulationHeadline(loc);
+    final shareOrigin = _sharePositionOrigin(originContext);
+    final previewIcon = await _iosSharePreviewIconAsset();
+    if (!mounted) return;
+    await SharePlus.instance.share(
+      ShareParams(
+        text: text,
+        title: title,
+        files: previewIcon != null ? [previewIcon] : null,
+        sharePositionOrigin: shareOrigin,
+      ),
+    );
+  }
+
+  Future<void> _onCompoundInterestChanged(bool? value) async {
+    if (value == null || loading) return;
+    final ok = await SimulationCondition.instance
+        .saveSimulationCompoundInterest(value);
+    if (!mounted) return;
+    if (ok) {
+      await runSimulation();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n(context).failedToSaveSettings)),
+      );
+    }
+  }
+
   Widget _buildHeaderCard(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return ClipRRect(
@@ -1356,11 +1458,55 @@ class _SimulationPageState extends State<SimulationPage>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            widget.simulationType == SimulationType.ai
-                                ? l10n(context).aiSimulatedTradeTitle
-                                : l10n(context).kimchiSimulatedTradeTitle,
-                            style: _TitleStyles.headerCardTitle(context),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  widget.simulationType == SimulationType.ai
+                                      ? l10n(context).aiSimulatedTradeTitle
+                                      : l10n(context).kimchiSimulatedTradeTitle,
+                                  style: _TitleStyles.headerCardTitle(context),
+                                ),
+                              ),
+                              Builder(
+                                builder: (btnContext) {
+                                  return OutlinedButton(
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: cs.primary,
+                                      side: BorderSide(
+                                        color: cs.primary.withValues(
+                                          alpha: 0.85,
+                                        ),
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      minimumSize: Size.zero,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    onPressed:
+                                        loading
+                                            ? null
+                                            : () => _shareSimulationResults(
+                                              btnContext,
+                                            ),
+                                    child: Text(
+                                      l10n(context).shareSimulationButton,
+                                      style: _ButtonStyles.smallButton.copyWith(
+                                        color: cs.primary,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 2),
                           Row(
@@ -1386,6 +1532,59 @@ class _SimulationPageState extends State<SimulationPage>
                                   color: cs.primary,
                                 ),
                                 onPressed: _onEditInitialCapital,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 28,
+                                height: 28,
+                                child: Checkbox(
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  visualDensity: VisualDensity.compact,
+                                  value:
+                                      SimulationCondition
+                                          .instance
+                                          .simulationCompoundInterest,
+                                  onChanged:
+                                      loading
+                                          ? null
+                                          : _onCompoundInterestChanged,
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  l10n(context).simulationCompoundInterestTitle,
+                                  style: _BodyStyles.labelText(
+                                    context,
+                                  ).copyWith(fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                              IconButton(
+                                tooltip:
+                                    l10n(
+                                      context,
+                                    ).simulationCompoundInterestHelpTooltip,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 32,
+                                  minHeight: 32,
+                                ),
+                                icon: Icon(
+                                  Icons.help_outline,
+                                  size: 20,
+                                  color: cs.onSurfaceVariant,
+                                ),
+                                onPressed:
+                                    loading
+                                        ? null
+                                        : () => _showCompoundInterestHelpDialog(
+                                          context,
+                                        ),
                               ),
                             ],
                           ),
@@ -1418,8 +1617,10 @@ class _SimulationPageState extends State<SimulationPage>
                     Builder(
                       builder: (context) {
                         if (results.isEmpty) return const Text("-");
-                        final startDate =
-                            _simDateLabel(results.first.buyDate, empty: "");
+                        final startDate = _simDateLabel(
+                          results.first.buyDate,
+                          empty: "",
+                        );
                         final endDate = _simDateLabel(
                           results.last.analysisDate,
                           empty: "",
@@ -1443,15 +1644,25 @@ class _SimulationPageState extends State<SimulationPage>
                     ),
                     Builder(
                       builder: (context) {
-                        final double totalGain =
-                            results.isNotEmpty
-                                ? (results.last.finalKRW - _initialCapitalKrw)
-                                : 0;
+                        if (results.isEmpty) {
+                          return const Text("-");
+                        }
+                        final compound =
+                            SimulationCondition
+                                .instance
+                                .simulationCompoundInterest;
+                        final endWealth = SimulationModel.totalEndingWealthKrw(
+                          results,
+                          _initialCapitalKrw,
+                          useCompoundInterest: compound,
+                        );
+                        final double totalGain = endWealth - _initialCapitalKrw;
                         final double totalGainPercent =
-                            results.isNotEmpty
-                                ? (results.last.finalKRW / _initialCapitalKrw * 100 -
-                                    100)
-                                : 0;
+                            SimulationModel.totalReturnPercent(
+                              results,
+                              _initialCapitalKrw,
+                              useCompoundInterest: compound,
+                            );
                         return RichText(
                           text: TextSpan(
                             children: [
@@ -1468,8 +1679,9 @@ class _SimulationPageState extends State<SimulationPage>
                               TextSpan(
                                 text:
                                     "(${totalGainPercent.toStringAsFixed(2)}%)",
-                                style: _CardStyles.headerCardValue(context)
-                                    .copyWith(
+                                style: _CardStyles.headerCardValue(
+                                  context,
+                                ).copyWith(
                                   color:
                                       totalGain >= 0
                                           ? const Color(0xFF4ADE80)
@@ -1495,9 +1707,17 @@ class _SimulationPageState extends State<SimulationPage>
                     Builder(
                       builder: (context) {
                         if (results.isEmpty) return const Text("-");
-                        final finalKRW = results.last.finalKRW;
+                        final compound =
+                            SimulationCondition
+                                .instance
+                                .simulationCompoundInterest;
+                        final endWealth = SimulationModel.totalEndingWealthKrw(
+                          results,
+                          _initialCapitalKrw,
+                          useCompoundInterest: compound,
+                        );
                         return Text(
-                          "₩${krwFormat.format(finalKRW.round())}",
+                          "₩${krwFormat.format(endWealth.round())}",
                           style: _CardStyles.headerCardValue(context),
                         );
                       },
@@ -1562,12 +1782,15 @@ class _SimulationPageState extends State<SimulationPage>
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-              color.withValues(alpha: 0.22),
-              color.withValues(alpha: 0.12),
-            ],
+                color.withValues(alpha: 0.22),
+                color.withValues(alpha: 0.12),
+              ],
             ),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: color.withValues(alpha: 0.55), width: 1.5),
+            border: Border.all(
+              color: color.withValues(alpha: 0.55),
+              width: 1.5,
+            ),
           ),
           child: OutlinedButton(
             onPressed: () {
@@ -1657,16 +1880,16 @@ class _SimulationPageState extends State<SimulationPage>
                   children: [
                     Text(
                       l10n(context).buy,
-                      style: _CardStyles.cardTitle(context).copyWith(
-                        color: Colors.white,
-                      ),
+                      style: _CardStyles.cardTitle(
+                        context,
+                      ).copyWith(color: Colors.white),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       _simDateLabel(r.buyDate),
-                      style: _CardStyles.cardDate(context).copyWith(
-                        color: Colors.white.withValues(alpha: 0.92),
-                      ),
+                      style: _CardStyles.cardDate(
+                        context,
+                      ).copyWith(color: Colors.white.withValues(alpha: 0.92)),
                     ),
                   ],
                 ),
@@ -1675,10 +1898,9 @@ class _SimulationPageState extends State<SimulationPage>
                   padding: const EdgeInsets.only(right: 4),
                   child: Text(
                     "₩${krwFormat.format(r.buyPrice)}",
-                    style: _CardStyles.cardPrice(context).copyWith(
-                      color: Colors.white,
-                      fontSize: 15,
-                    ),
+                    style: _CardStyles.cardPrice(
+                      context,
+                    ).copyWith(color: Colors.white, fontSize: 15),
                     textAlign: TextAlign.right,
                     maxLines: 1,
                     overflow: TextOverflow.visible,
@@ -1755,16 +1977,16 @@ class _SimulationPageState extends State<SimulationPage>
                   children: [
                     Text(
                       l10n(context).sell,
-                      style: _CardStyles.cardTitle(context).copyWith(
-                        color: Colors.white,
-                      ),
+                      style: _CardStyles.cardTitle(
+                        context,
+                      ).copyWith(color: Colors.white),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       _simDateLabel(r.sellDate),
-                      style: _CardStyles.cardDate(context).copyWith(
-                        color: Colors.white.withValues(alpha: 0.92),
-                      ),
+                      style: _CardStyles.cardDate(
+                        context,
+                      ).copyWith(color: Colors.white.withValues(alpha: 0.92)),
                     ),
                   ],
                 ),
@@ -1775,10 +1997,9 @@ class _SimulationPageState extends State<SimulationPage>
                     r.sellPrice != null
                         ? "₩${krwFormat.format(r.sellPrice!)}"
                         : "-",
-                    style: _CardStyles.cardPrice(context).copyWith(
-                      color: Colors.white,
-                      fontSize: 15,
-                    ),
+                    style: _CardStyles.cardPrice(
+                      context,
+                    ).copyWith(color: Colors.white, fontSize: 15),
                     textAlign: TextAlign.right,
                     maxLines: 1,
                     overflow: TextOverflow.visible,
@@ -1853,9 +2074,9 @@ class _SimulationPageState extends State<SimulationPage>
                     children: [
                       TextSpan(
                         text: "${l10n(context).gain}: ",
-                        style: _CardStyles.cardDate(context).copyWith(
-                          color: cs.onSurfaceVariant,
-                        ),
+                        style: _CardStyles.cardDate(
+                          context,
+                        ).copyWith(color: cs.onSurfaceVariant),
                       ),
                       TextSpan(
                         text:
@@ -1927,10 +2148,9 @@ class _SimulationPageState extends State<SimulationPage>
                         l10n(
                           context,
                         ).feeWithAmount(krwFormat.format(totalFee.round())),
-                        style: _CardStyles.cardDate(context).copyWith(
-                          color: cs.onSurfaceVariant,
-                          fontSize: 13,
-                        ),
+                        style: _CardStyles.cardDate(
+                          context,
+                        ).copyWith(color: cs.onSurfaceVariant, fontSize: 13),
                       ),
                     );
                   },
@@ -1945,24 +2165,23 @@ class _SimulationPageState extends State<SimulationPage>
                             r.sellDate == null
                                 ? "${l10n(context).evaluationAmount} "
                                 : "${l10n(context).finalKRW} ",
-                        style: _CardStyles.cardDate(context).copyWith(
-                          color: cs.onSurfaceVariant,
-                        ),
+                        style: _CardStyles.cardDate(
+                          context,
+                        ).copyWith(color: cs.onSurfaceVariant),
                       ),
                       TextSpan(
                         text: "₩${krwFormat.format(currentValue.round())}",
-                        style: _CardStyles.cardDate(context).copyWith(
-                          color: cs.onSurface,
-                        ),
+                        style: _CardStyles.cardDate(
+                          context,
+                        ).copyWith(color: cs.onSurface),
                       ),
                       if (r.sellDate == null && currentUsdtPrice != null)
                         TextSpan(
                           text:
                               " (${l10n(context).usdt}: ${currentUsdtPrice.toStringAsFixed(1)})",
-                          style: _CardStyles.cardDate(context).copyWith(
-                            color: cs.onSurfaceVariant,
-                            fontSize: 12,
-                          ),
+                          style: _CardStyles.cardDate(
+                            context,
+                          ).copyWith(color: cs.onSurfaceVariant, fontSize: 12),
                         ),
                     ],
                   ),
@@ -1977,21 +2196,25 @@ class _SimulationPageState extends State<SimulationPage>
 
   // 결과 카드에서 사용할 매수 금액 계산
   double _getBuyAmountForResult(SimulationResult r) {
-    // 현재 결과의 인덱스 찾기
-    final index = results.indexOf(r);
-    if (index > 0) {
-      // 이전 거래의 finalKRW 사용
-      return results[index - 1].finalKRW;
-    } else {
-      // 첫 거래인 경우 초기 자본 사용
+    if (!SimulationCondition.instance.simulationCompoundInterest) {
       return _initialCapitalKrw;
     }
+    final index = results.indexOf(r);
+    if (index > 0) {
+      return results[index - 1].finalKRW;
+    }
+    return _initialCapitalKrw;
   }
 
   Widget _buildPerformanceMetrics(BuildContext context) {
-    final double totalGain =
+    final compound = SimulationCondition.instance.simulationCompoundInterest;
+    final double totalGainPct =
         results.isNotEmpty
-            ? (results.last.finalKRW / _initialCapitalKrw * 100 - 100)
+            ? SimulationModel.totalReturnPercent(
+              results,
+              _initialCapitalKrw,
+              useCompoundInterest: compound,
+            )
             : 0;
 
     String annualYieldText = "0.00%";
@@ -1999,6 +2222,7 @@ class _SimulationPageState extends State<SimulationPage>
       final annualYield = SimulationModel.calculateAnnualYield(
         results,
         initialKRW: _initialCapitalKrw,
+        useCompoundInterest: compound,
       );
       if (!annualYield.isNaN && !annualYield.isInfinite && annualYield != 0.0) {
         annualYieldText = "${annualYield.toStringAsFixed(2)}%";
@@ -2006,14 +2230,25 @@ class _SimulationPageState extends State<SimulationPage>
     }
 
     final cs = Theme.of(context).colorScheme;
+    final totalGainColor =
+        totalGainPct >= 0 ? const Color(0xFF4ADE80) : const Color(0xFFF87171);
+    final annualYieldVal =
+        double.tryParse(annualYieldText.replaceAll('%', '')) ?? 0;
+    final annualColor =
+        annualYieldText == "0.00%"
+            ? cs.primary
+            : (annualYieldVal >= 0
+                ? const Color(0xFF4ADE80)
+                : const Color(0xFFF87171));
+
     return Row(
       children: [
         Expanded(
           child: _buildMetricCard(
             context,
             l10n(context).totalGain,
-            "${totalGain.toStringAsFixed(2)}%",
-            const Color(0xFF4ADE80),
+            "${totalGainPct.toStringAsFixed(2)}%",
+            totalGainColor,
           ),
         ),
         const SizedBox(width: 12),
@@ -2022,7 +2257,7 @@ class _SimulationPageState extends State<SimulationPage>
             context,
             l10n(context).extimatedYearGain,
             annualYieldText,
-            cs.primary,
+            annualColor,
             showInfoIcon: true,
             onInfoTap: () => _showAnnualYieldInfoDialog(context),
           ),
@@ -2084,14 +2319,46 @@ class _SimulationPageState extends State<SimulationPage>
               const SizedBox(height: 8),
               Text(
                 value,
-                style: _CardStyles.metricValue(context).copyWith(
-                  color: valueColor,
-                ),
+                style: _CardStyles.metricValue(
+                  context,
+                ).copyWith(color: valueColor),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  void _showCompoundInterestHelpDialog(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    LiquidGlassDialog.show(
+      context: context,
+      title: Row(
+        children: [
+          Icon(Icons.help_outline, color: cs.primary, size: 24),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              l10n(context).simulationCompoundInterestTitle,
+              style: _TitleStyles.dialogTitle(context),
+            ),
+          ),
+        ],
+      ),
+      content: Text(
+        l10n(context).simulationCompoundInterestHelpBody,
+        style: _DialogStyles.bodyText(context),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(
+            l10n(context).confirm,
+            style: TextStyle(color: cs.primary),
+          ),
+        ),
+      ],
     );
   }
 

@@ -177,6 +177,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get totalGain => '총 수익률';
 
   @override
+  String get annualAvgReturn => '연 평균 수익률';
+
+  @override
   String get extimatedYearGain => '추정 연 수익률';
 
   @override
@@ -448,6 +451,19 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get kimchiSimulatedTradeTitle => '김프 모의 투자';
+
+  @override
+  String get shareSimulationButton => '공유하기';
+
+  @override
+  String get simulationCompoundInterestTitle => '복리 계산';
+
+  @override
+  String get simulationCompoundInterestHelpTooltip => '복리 계산 설명';
+
+  @override
+  String get simulationCompoundInterestHelpBody =>
+      '켜면 매도 후 누적 금액으로 다시 매수합니다. 끄면 매수마다 초기 자본만 사용합니다.';
 
   @override
   String get profitRate => '수익률';

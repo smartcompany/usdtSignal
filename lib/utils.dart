@@ -82,9 +82,9 @@ class SimulationCondition {
   SimulationCondition._internal();
   static final SimulationCondition instance = SimulationCondition._internal();
 
-  double _kimchiBuyThreshold = 0.5;
+  double _kimchiBuyThreshold = 0;
   double get kimchiBuyThreshold => _kimchiBuyThreshold;
-  double _kimchiSellThreshold = 2.5;
+  double _kimchiSellThreshold = 1;
   double get kimchiSellThreshold => _kimchiSellThreshold;
   DateTime? _kimchiStartDate;
   DateTime? get kimchiStartDate => _kimchiStartDate;
@@ -104,12 +104,16 @@ class SimulationCondition {
   double _simulationInitialKrw = 1000000;
   double get simulationInitialKrw => _simulationInitialKrw;
 
+  /// `true`: 매도 후 누적 금액으로 재매수(복리). `false`: 매수마다 초기 자본만 사용.
+  bool _simulationCompoundInterest = true;
+  bool get simulationCompoundInterest => _simulationCompoundInterest;
+
   void load() {
     SharedPreferences.getInstance().then((prefs) {
       instance._kimchiBuyThreshold =
-          prefs.getDouble('kimchiBuyThreshold') ?? 0.5;
+          prefs.getDouble('kimchiBuyThreshold') ?? 0;
       instance._kimchiSellThreshold =
-          prefs.getDouble('kimchiSellThreshold') ?? 2.5;
+          prefs.getDouble('kimchiSellThreshold') ?? 1;
       final startDateRaw = prefs.getString('kimchiStartDate');
       final endDateRaw = prefs.getString('kimchiEndDate');
       instance._kimchiStartDate =
@@ -123,7 +127,25 @@ class SimulationCondition {
       instance._kimchiFxSellMin =
           prefs.getDouble('kimchiFxSellMin') ?? defaultKimchiFxSellMin;
       instance._simulationInitialKrw = _readSimulationInitialKrwSync(prefs);
+      instance._simulationCompoundInterest =
+          _readSimulationCompoundInterestSync(prefs);
     });
+  }
+
+  static bool _readSimulationCompoundInterestSync(SharedPreferences prefs) {
+    if (prefs.containsKey('simulationCompoundInterest')) {
+      return prefs.getBool('simulationCompoundInterest') ?? true;
+    }
+    final raw = prefs.getString('userData');
+    if (raw != null) {
+      try {
+        final map = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+        final v = map['simulationCompoundInterest'];
+        if (v is bool) return v;
+        if (v is int) return v != 0;
+      } catch (_) {}
+    }
+    return true;
   }
 
   static double _readSimulationInitialKrwSync(SharedPreferences prefs) {
@@ -148,7 +170,21 @@ class SimulationCondition {
   Future<double> getInitialCapitalKrw() async {
     final prefs = await SharedPreferences.getInstance();
     _simulationInitialKrw = _readSimulationInitialKrwSync(prefs);
+    _simulationCompoundInterest = _readSimulationCompoundInterestSync(prefs);
     return _simulationInitialKrw;
+  }
+
+  Future<bool> saveSimulationCompoundInterest(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('simulationCompoundInterest', value);
+    _simulationCompoundInterest = value;
+    try {
+      return await ApiService.shared.saveAndSyncUserData({
+        UserDataKey.simulationCompoundInterest: value,
+      });
+    } catch (_) {
+      return false;
+    }
   }
 
   static const double _minInitialKrw = 10000;
