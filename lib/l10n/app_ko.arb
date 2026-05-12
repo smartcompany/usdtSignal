@@ -108,6 +108,30 @@
       }
     }
   },
+  "kimchiStrategyDetailSettingsLine": "설정값(보정 후 김프) · 매수 ≤{buyPct}% · 매도 ≥{sellPct}%",
+  "@kimchiStrategyDetailSettingsLine": {
+    "placeholders": {
+      "buyPct": { "type": "String" },
+      "sellPct": { "type": "String" }
+    }
+  },
+  "kimchiStrategyDetailFxLine": "이 시점 환율 · {fx}원",
+  "@kimchiStrategyDetailFxLine": {
+    "placeholders": { "fx": { "type": "String" } }
+  },
+  "kimchiStrategyDetailDeltaLine": "구간 보정(Δ) · {deltaSigned} pp",
+  "@kimchiStrategyDetailDeltaLine": {
+    "placeholders": { "deltaSigned": { "type": "String" } }
+  },
+  "kimchiStrategyDetailAppliedLine": "가격선 적용(설정 − Δ) · 매수 {buyApp}% · 매도 {sellApp}%",
+  "@kimchiStrategyDetailAppliedLine": {
+    "placeholders": {
+      "buyApp": { "type": "String" },
+      "sellApp": { "type": "String" }
+    }
+  },
+  "kimchiStrategyDetailDeltaUnavailable": "(이 시점 환율을 찾지 못해 구간 Δ·가격선 비율은 생략됩니다)",
+  "kimchiStrategyDetailFootnote": "가격선 비율은 시뮬과 같이 환율×(1+값/100)에 들어갑니다. 설정 %는 「보정 후 김프」 기준입니다.",
   "sellIfCurrentPrice":"현재가 매도시",
   "onboardingTitle1": "테더(USDT)의 숨겨진 차이",
   "onboardingBody1": "해외에서는 1 USDT = 1 USD지만, 한국 거래소에서는 환율과 '김치 프리미엄'으로 인해 실제 가격이 달라집니다. 이 차이를 잘 활용하면 수익을 만들 수 있어요.",
@@ -216,5 +240,7 @@
   "kimchiFxBuyMaxHelpBody": "환율이 설정된 이상 보다 높을 경우 매수를 방지 해서 수익률을 개선합니다",
   "kimchiFxSellMinHelpBody": "설정된 환율보다 낮을 경우 매도를 방지해서 수익률을 개선 할 수 있습니다",
   "kimchiBuyThresholdHelpBody": "김치 프리미엄(한국 USDT가 달러 환율 대비 얼마나 비싼지)이 입력한 % 이하일 때 매수 신호를 검토합니다. 값을 낮추면 더 싸게 보일 때만 매수하려 하고, 높이면 상대적으로 더 일찍 매수하는 설정에 가깝습니다.",
-  "kimchiSellThresholdHelpBody": "김치 프리미엄이 입력한 % 이상일 때 매도 신호를 검토합니다. 값을 높이면 프리미엄이 더 커졌을 때만 매도하려 하고, 낮추면 비교적 작은 프리미엄에서도 매도 후보가 됩니다."
+  "kimchiSellThresholdHelpBody": "김치 프리미엄이 입력한 % 이상일 때 매도 신호를 검토합니다. 값을 높이면 프리미엄이 더 커졌을 때만 매도하려 하고, 낮추면 비교적 작은 프리미엄에서도 매도 후보가 됩니다.",
+  "kimchiFxDeltaCorrectionLabel": "환율 구간별 김프 델타 보정(서버 JSON)",
+  "kimchiFxDeltaCorrectionHelpBody": "켜면 서버 `/api/kimchi-fx-delta`(USD/KRW 퀀타일별 델타)를 받아 김프 임계에 맞춥니다. 공식은 보정 후 김프(%) ≈ 원시 김프 + 델타이며, 시뮬·차트 김프 매매선·오늘의 코멘트에 동일하게 적용됩니다."
 }

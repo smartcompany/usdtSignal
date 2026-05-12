@@ -8,6 +8,8 @@ import 'package:intl/intl.dart';
 import 'package:usdt_signal/ChartOnlyPage.dart'; // ChartOnlyPageModel import 추가
 import 'package:share_plus/share_plus.dart';
 import 'package:usdt_signal/api_service.dart';
+import 'package:usdt_signal/kimchi_fx_delta.dart';
+import 'package:usdt_signal/kimchi_strategy_explain.dart';
 import 'package:usdt_signal/l10n/app_localizations.dart';
 import 'package:usdt_signal/simulation_model.dart';
 import 'package:usdt_signal/strategy_history_page.dart';
@@ -294,6 +296,8 @@ class SimulationPage extends StatefulWidget {
 
         double buy = SimulationCondition.instance.kimchiBuyThreshold;
         double sell = SimulationCondition.instance.kimchiSellThreshold;
+        bool useKimchiFxDeltaCorr =
+            SimulationCondition.instance.kimchiFxDeltaCorrectionEnabled;
         final sortedDates = (availableDates ?? <DateTime>[]).toList()..sort();
         DateTime? startDate =
             SimulationCondition.instance.kimchiStartDate ?? defaultStartDate;
@@ -397,6 +401,37 @@ class SimulationPage extends StatefulWidget {
                             context,
                             title: l10n(context).kimchiFxRateLimitHelpTitle,
                             body: l10n(context).kimchiSellThresholdHelpBody,
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Checkbox(
+                          value: useKimchiFxDeltaCorr,
+                          onChanged: (v) {
+                            setState(() {
+                              useKimchiFxDeltaCorr = v ?? false;
+                            });
+                          },
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(l10n(context).kimchiFxDeltaCorrectionLabel),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.help_outline),
+                        tooltip: l10n(context).kimchiFxRateLimitHelpTooltip,
+                        onPressed: () {
+                          _showKimchiFxRateHelpDialog(
+                            context,
+                            title: l10n(context).kimchiFxRateLimitHelpTitle,
+                            body: l10n(context).kimchiFxDeltaCorrectionHelpBody,
                           );
                         },
                       ),
@@ -587,6 +622,7 @@ class SimulationPage extends StatefulWidget {
                       'endDate': endDate,
                       'kimchiFxBuyMax': fxBuyParsed,
                       'kimchiFxSellMin': fxSellParsed,
+                      'kimchiFxDeltaCorrection': useKimchiFxDeltaCorr,
                     });
                   },
                   child: Text(l10n(context).confirm),
@@ -608,12 +644,15 @@ class SimulationPage extends StatefulWidget {
           SimulationCondition.defaultKimchiFxBuyMax;
       final kimchiFxSellMin =
           (result['kimchiFxSellMin'] as num?)?.toDouble() ?? 0.0;
+      final kimchiFxDeltaCorrection =
+          result['kimchiFxDeltaCorrection'] as bool? ?? false;
 
       final isSuccess = await ApiService.shared.saveAndSyncUserData({
         UserDataKey.gimchiBuyPercent: buy,
         UserDataKey.gimchiSellPercent: sell,
         UserDataKey.gimchiFxBuyMax: kimchiFxBuyMax,
         UserDataKey.gimchiFxSellMin: kimchiFxSellMin,
+        UserDataKey.kimchiFxDeltaCorrection: kimchiFxDeltaCorrection,
       });
 
       if (isSuccess) {
@@ -625,6 +664,9 @@ class SimulationPage extends StatefulWidget {
         );
         await SimulationCondition.instance.saveKimchiFxBuyMax(kimchiFxBuyMax);
         await SimulationCondition.instance.saveKimchiFxSellMin(kimchiFxSellMin);
+        await SimulationCondition.instance.putKimchiFxDeltaCorrectionPrefs(
+          kimchiFxDeltaCorrection,
+        );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(l10n(context).failedToSaveSettings)),
@@ -721,6 +763,7 @@ class _SimulationPageState extends State<SimulationPage>
           loading = false;
         });
       } else if (widget.simulationType == SimulationType.kimchi) {
+        await KimchiFxDeltaStore.instance.ensureLoaded(ApiService.shared);
         final simResults = SimulationModel.gimchiSimulateResults(
           usdExchangeRates,
           strategyList,
@@ -842,7 +885,17 @@ class _SimulationPageState extends State<SimulationPage>
     return null; // 이전 전략이 없으면 null 반환
   }
 
-  void _showStrategyDialog(BuildContext context, DateTime date) {
+  Future<void> _showStrategyDialog(
+    BuildContext context,
+    DateTime date, {
+    double? usdKrwHint,
+  }) async {
+    if (widget.simulationType == SimulationType.kimchi &&
+        SimulationCondition.instance.kimchiFxDeltaCorrectionEnabled) {
+      await KimchiFxDeltaStore.instance.ensureLoaded(ApiService.shared);
+    }
+    if (!context.mounted) return;
+
     var strategy = strategies?.firstWhere(
       (s) => DateTime.parse(s['analysis_date']).isSameDate(date),
       orElse: () => {},
@@ -873,7 +926,16 @@ class _SimulationPageState extends State<SimulationPage>
       );
     }
 
-    showDialog(
+    final fxForExplain =
+        (usdKrwHint != null && usdKrwHint > 0)
+            ? usdKrwHint
+            : lookupUsdKrwForKimchiDialog(
+              rates: widget.usdExchangeRates,
+              date: date,
+              hourlyGranularity: widget.hourlyGranularity,
+            );
+
+    await showDialog(
       context: context,
       builder: (BuildContext context) {
         final cs = Theme.of(context).colorScheme;
@@ -958,17 +1020,20 @@ class _SimulationPageState extends State<SimulationPage>
                           style: _DialogStyles.bodyText(context),
                         ),
                       ] else ...[
-                        Text(
-                          widget.simulationType == SimulationType.kimchi
-                              ? l10n(context).kimchiStrategyComment(
-                                double.parse(buyThreshold.toStringAsFixed(1)),
-                                double.parse(sellThreshold.toStringAsFixed(1)),
-                              )
-                              : (strategy != null && strategy.isNotEmpty)
-                              ? '${strategy['summary'] ?? '전략 정보'}'
-                              : '해당 날짜에 대한 전략이 없습니다.',
-                          style: _DialogStyles.bodyText(context),
-                        ),
+                        widget.simulationType == SimulationType.kimchi
+                            ? buildKimchiStrategyExplanationContent(
+                              context: context,
+                              l10n: l10n(context),
+                              buyBase: buyThreshold,
+                              sellBase: sellThreshold,
+                              fx: fxForExplain,
+                            )
+                            : Text(
+                              (strategy != null && strategy.isNotEmpty)
+                                  ? '${strategy['summary'] ?? '전략 정보'}'
+                                  : '해당 날짜에 대한 전략이 없습니다.',
+                              style: _DialogStyles.bodyText(context),
+                            ),
                       ],
                     ],
                   ),
@@ -1770,8 +1835,9 @@ class _SimulationPageState extends State<SimulationPage>
   Widget _buildStrategyButton(
     BuildContext context,
     DateTime? date,
-    Color color,
-  ) {
+    Color color, {
+    double? usdKrwHint,
+  }) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: BackdropFilter(
@@ -1793,9 +1859,13 @@ class _SimulationPageState extends State<SimulationPage>
             ),
           ),
           child: OutlinedButton(
-            onPressed: () {
+            onPressed: () async {
               if (date != null) {
-                _showStrategyDialog(context, date);
+                await _showStrategyDialog(
+                  context,
+                  date,
+                  usdKrwHint: usdKrwHint,
+                );
               }
             },
             style: OutlinedButton.styleFrom(
@@ -1826,9 +1896,13 @@ class _SimulationPageState extends State<SimulationPage>
     ];
 
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
         if (r.buyDate != null) {
-          _showStrategyDialog(context, r.buyDate!);
+          await _showStrategyDialog(
+            context,
+            r.buyDate!,
+            usdKrwHint: r.usdExchangeRateAtBuy,
+          );
         }
       },
       child: ClipRRect(
@@ -1907,7 +1981,12 @@ class _SimulationPageState extends State<SimulationPage>
                   ),
                 ),
                 const SizedBox(width: 4),
-                _buildStrategyButton(context, r.buyDate, Colors.white),
+                _buildStrategyButton(
+                  context,
+                  r.buyDate,
+                  Colors.white,
+                  usdKrwHint: r.usdExchangeRateAtBuy,
+                ),
               ],
             ),
           ),
@@ -1923,9 +2002,13 @@ class _SimulationPageState extends State<SimulationPage>
     ];
 
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
         if (r.sellDate != null) {
-          _showStrategyDialog(context, r.sellDate!);
+          await _showStrategyDialog(
+            context,
+            r.sellDate!,
+            usdKrwHint: r.usdExchangeRateAtSell,
+          );
         }
       },
       child: ClipRRect(
@@ -2006,7 +2089,12 @@ class _SimulationPageState extends State<SimulationPage>
                   ),
                 ),
                 const SizedBox(width: 4),
-                _buildStrategyButton(context, r.sellDate, Colors.white),
+                _buildStrategyButton(
+                  context,
+                  r.sellDate,
+                  Colors.white,
+                  usdKrwHint: r.usdExchangeRateAtSell,
+                ),
               ],
             ),
           ),

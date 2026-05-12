@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'kimchi_fx_delta.dart';
 import 'utils.dart';
 import 'simulation_page.dart';
 import 'api_service.dart';
@@ -301,8 +302,12 @@ class SimulationModel {
         targetDate: date,
       );
 
-      buyTargetPrice = usdExchangeRate * (1 + buyThreshold / 100);
-      sellTargetPrice = usdExchangeRate * (1 + sellThreshold / 100);
+      final d =
+          KimchiFxDeltaStore.instance.deltaForFxWhenEnabled(usdExchangeRate);
+      buyTargetPrice =
+          usdExchangeRate * (1 + (buyThreshold - d) / 100);
+      sellTargetPrice =
+          usdExchangeRate * (1 + (sellThreshold - d) / 100);
 
       // 매수 조건: 프리미엄 buyThreshold% 미만, 아직 매수 안한 상태
       if (buyPrice == null) {
@@ -694,10 +699,14 @@ class SimulationModel {
           targetDate: todayUsdtTime,
         );
 
-        // 김치 프리미엄 매수/매도 가격 계산
-        final buyPriceKimchi = (exchangeRateValue * (1 + buyThreshold / 100));
+        final dAdj =
+            KimchiFxDeltaStore.instance.deltaForFxWhenEnabled(exchangeRateValue);
+
+        // 김치 프리미엄 매수/매도 가격 계산 (환율 구간 보정 적용 시 임계 = 설정값 − delta)
+        final buyPriceKimchi =
+            exchangeRateValue * (1 + (buyThreshold - dAdj) / 100);
         final sellPriceKimchi =
-            (exchangeRateValue * (1 + sellThreshold / 100));
+            exchangeRateValue * (1 + (sellThreshold - dAdj) / 100);
 
         if (buyPriceKimchi == 0 || sellPriceKimchi == 0) {
           return null;
@@ -710,7 +719,7 @@ class SimulationModel {
           return (
             price: buyPriceKimchi,
             isBuy: true,
-            kimchiPremium: buyThreshold,
+            kimchiPremium: buyThreshold - dAdj,
           );
         }
         if (fxBlocksSellKimchi) {
@@ -719,7 +728,7 @@ class SimulationModel {
         return (
           price: sellPriceKimchi,
           isBuy: false,
-          kimchiPremium: sellThreshold,
+          kimchiPremium: sellThreshold - dAdj,
         );
     }
   }
@@ -738,8 +747,11 @@ class SimulationModel {
       targetDate: targetDate,
     );
 
-    final buyPrice = exchangeRateValue * (1 + buyThreshold / 100);
-    final sellPrice = exchangeRateValue * (1 + sellThreshold / 100);
+    final d = KimchiFxDeltaStore.instance.deltaForFxWhenEnabled(exchangeRateValue);
+    final buyPrice =
+        exchangeRateValue * (1 + (buyThreshold - d) / 100);
+    final sellPrice =
+        exchangeRateValue * (1 + (sellThreshold - d) / 100);
 
     return (buyPrice: buyPrice, sellPrice: sellPrice);
   }
@@ -760,7 +772,8 @@ class SimulationModel {
       exchangeRates: exchangeRates,
       targetDate: targetDate,
     );
-    return exchangeRateValue * (1 + buyThreshold / 100);
+    final d = KimchiFxDeltaStore.instance.deltaForFxWhenEnabled(exchangeRateValue);
+    return exchangeRateValue * (1 + (buyThreshold - d) / 100);
   }
 
   static double _getKimchiSellPrice({
@@ -779,6 +792,7 @@ class SimulationModel {
       exchangeRates: exchangeRates,
       targetDate: targetDate,
     );
-    return exchangeRateValue * (1 + sellThreshold / 100);
+    final d = KimchiFxDeltaStore.instance.deltaForFxWhenEnabled(exchangeRateValue);
+    return exchangeRateValue * (1 + (sellThreshold - d) / 100);
   }
 }

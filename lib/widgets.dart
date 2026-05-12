@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:usdt_signal/l10n/app_localizations.dart';
 import 'package:usdt_signal/simulation_page.dart'; // SimulationType 정의된 파일 import
 
@@ -92,8 +93,10 @@ String getTooltipMessage(
   SimulationType simulationType,
   bool isBuy,
   double price,
-  double? kimchiPremium,
-) {
+  double? kimchiPremium, {
+  double? exchangeRate,
+  String? localeTag,
+}) {
   String action;
   if (isBuy) {
     action = l10n.nextBuyPoint;
@@ -106,6 +109,11 @@ String getTooltipMessage(
 
   String message = '[$strategyName] $action\n';
   message += '${l10n.priceLabel} : ${price.toStringAsFixed(1)}\n';
+
+  if (exchangeRate != null && exchangeRate > 0) {
+    final nf = NumberFormat('#,##0.#', localeTag);
+    message += '${l10n.exchangeRate} : ${nf.format(exchangeRate)}\n';
+  }
 
   if (kimchiPremium != null) {
     message += '${l10n.basePremium} : ${kimchiPremium.toStringAsFixed(2)}%';

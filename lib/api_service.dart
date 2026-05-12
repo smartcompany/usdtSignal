@@ -84,9 +84,11 @@ class ApiService {
   static const String fcmTokenUrl = "$host/api/fcm-token";
   static const String userDataUrl = "$host/api/user-data";
   static const String settingsUrl = "$host/api/settings";
+  static const String kimchiFxDeltaUrl = "$host/api/kimchi-fx-delta";
   static const String airdropInfoUrl = "$host/api/airdrop-info";
-  static const String latestUsdtUrl =
-      'https://api.upbit.com/v1/ticker?markets=KRW-USDT';
+  // 웹 클라이언트에서 직접 Upbit를 호출하면 CORS 에러가 나기 때문에
+  // Next.js 서버(`/api/upbit-usdt`)를 통해 프록시한다.
+  static const String latestUsdtUrl = "$host/api/upbit-usdt";
   static const latestExchangeRateUrl = '$host/api/rate-history';
   static const String binanceFundingRateUrl = '$host/api/binance-funding-rate';
   static const String bybitFundingRateUrl = '$host/api/bybit-funding-rate';
@@ -95,6 +97,22 @@ class ApiService {
 
   // Settings 캐시
   Map<String, dynamic>? settings;
+
+  Future<Map<String, dynamic>?> fetchKimchiFxDeltaPayload() async {
+    try {
+      final response = await http
+          .get(Uri.parse(kimchiFxDeltaUrl))
+          .timeout(const Duration(seconds: 20));
+      if (response.statusCode != 200) {
+        return null;
+      }
+      final obj = jsonDecode(utf8.decode(response.bodyBytes));
+      if (obj is! Map<String, dynamic>) return null;
+      return Map<String, dynamic>.from(obj);
+    } catch (e) {
+      return null;
+    }
+  }
 
   Future<double?> fetchLatestUSDTData() async {
     try {
@@ -792,6 +810,7 @@ enum UserDataKey {
   gimchiFxSellMin,
   simulationInitialKrw,
   simulationCompoundInterest,
+  kimchiFxDeltaCorrection,
 }
 
 extension UserDataKeyExt on UserDataKey {
@@ -811,6 +830,8 @@ extension UserDataKeyExt on UserDataKey {
         return 'simulationInitialKrw';
       case UserDataKey.simulationCompoundInterest:
         return 'simulationCompoundInterest';
+      case UserDataKey.kimchiFxDeltaCorrection:
+        return 'kimchiFxDeltaCorrection';
     }
   }
 }

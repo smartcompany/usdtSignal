@@ -108,6 +108,10 @@ class SimulationCondition {
   bool _simulationCompoundInterest = true;
   bool get simulationCompoundInterest => _simulationCompoundInterest;
 
+  /// `true`: USD/KRW 구간별 델타(`/api/kimchi-fx-delta`)로 김프 임계 매칭 보정.
+  bool _kimchiFxDeltaCorrectionEnabled = false;
+  bool get kimchiFxDeltaCorrectionEnabled => _kimchiFxDeltaCorrectionEnabled;
+
   void load() {
     SharedPreferences.getInstance().then((prefs) {
       instance._kimchiBuyThreshold =
@@ -129,7 +133,25 @@ class SimulationCondition {
       instance._simulationInitialKrw = _readSimulationInitialKrwSync(prefs);
       instance._simulationCompoundInterest =
           _readSimulationCompoundInterestSync(prefs);
+      instance._kimchiFxDeltaCorrectionEnabled =
+          _readKimchiFxDeltaCorrectionSync(prefs);
     });
+  }
+
+  static bool _readKimchiFxDeltaCorrectionSync(SharedPreferences prefs) {
+    if (prefs.containsKey('kimchiFxDeltaCorrection')) {
+      return prefs.getBool('kimchiFxDeltaCorrection') ?? false;
+    }
+    final raw = prefs.getString('userData');
+    if (raw != null) {
+      try {
+        final map = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+        final v = map['kimchiFxDeltaCorrection'];
+        if (v is bool) return v;
+        if (v is int) return v != 0;
+      } catch (_) {}
+    }
+    return false;
   }
 
   static bool _readSimulationCompoundInterestSync(SharedPreferences prefs) {
@@ -171,6 +193,7 @@ class SimulationCondition {
     final prefs = await SharedPreferences.getInstance();
     _simulationInitialKrw = _readSimulationInitialKrwSync(prefs);
     _simulationCompoundInterest = _readSimulationCompoundInterestSync(prefs);
+    _kimchiFxDeltaCorrectionEnabled = _readKimchiFxDeltaCorrectionSync(prefs);
     return _simulationInitialKrw;
   }
 
@@ -259,6 +282,12 @@ class SimulationCondition {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('kimchiFxSellMin', v);
     _kimchiFxSellMin = v;
+  }
+
+  Future<void> putKimchiFxDeltaCorrectionPrefs(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('kimchiFxDeltaCorrection', value);
+    _kimchiFxDeltaCorrectionEnabled = value;
   }
 
   Future<String?> _getFcmToken() async {

@@ -21,6 +21,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'api_service.dart';
+import 'kimchi_fx_delta.dart';
 import 'utils.dart';
 import 'widgets.dart';
 import 'package:app_tracking_transparency/app_tracking_transparency.dart'; // ATT 패키지 import 추가
@@ -980,6 +981,7 @@ class _MyHomePageState extends State<MyHomePage>
         usdtMap.isEmpty) {
       return;
     }
+    await KimchiFxDeltaStore.instance.ensureLoaded(ApiService.shared);
     final simInitial =
         await SimulationCondition.instance.getInitialCapitalKrw();
     if (!mounted) return;
@@ -1148,6 +1150,7 @@ class _MyHomePageState extends State<MyHomePage>
       return;
     }
 
+    await KimchiFxDeltaStore.instance.ensureLoaded(ApiService.shared);
     final simInitial =
         await SimulationCondition.instance.getInitialCapitalKrw();
     if (!mounted) return;
@@ -1880,6 +1883,7 @@ class _MyHomePageState extends State<MyHomePage>
   // 백그라운드에서 전략 데이터 로딩
   Future<void> _loadStrategyInBackground() async {
     try {
+      await KimchiFxDeltaStore.instance.ensureLoaded(ApiService.shared);
       // 김치 프리미엄 트렌드와 함께 전략 데이터 가져오기
       final response = await ApiService.shared.fetchStrategyWithKimchiTrends();
 
@@ -2707,10 +2711,18 @@ class _MyHomePageState extends State<MyHomePage>
                 final div = exchangeRate.abs() < 1e-9 ? 1.0 : exchangeRate;
                 final kimchiPremiumValue = ((usdtValue - div) / div * 100);
 
-                // 툴팁 텍스트를 기존 텍스트에 김치 프리미엄 값을 추가
+                final localeTag =
+                    Localizations.localeOf(context).toLanguageTag();
+                final nfFx = NumberFormat('#,##0.#', localeTag);
+                final fxLine =
+                    exchangeRate.abs() >= 1e-9
+                        ? '\n${l10n(context).exchangeRate}: ${nfFx.format(exchangeRate)}'
+                        : '';
+
+                // 툴팁: 김치 프리미엄 위에 환율 한 줄
                 args.text =
-                    '${args.text}\n'
-                    'Gimchi: ${kimchiPremiumValue.toStringAsFixed(2)}%';
+                    '${args.text}$fxLine\n'
+                    '${l10n(context).gimchiPremiem}: ${kimchiPremiumValue.toStringAsFixed(2)}%';
               },
 
               legend: Legend(
@@ -2779,6 +2791,16 @@ class _MyHomePageState extends State<MyHomePage>
                         nextPoint.isBuy,
                         nextPoint.price,
                         nextPoint.kimchiPremium,
+                        exchangeRate: usdtChartData.isEmpty
+                            ? null
+                            : () {
+                                final er = _exchangeRateAtChartPoint(
+                                  usdtChartData.last.time,
+                                );
+                                return er > 0 ? er : null;
+                              }(),
+                        localeTag:
+                            Localizations.localeOf(context).toLanguageTag(),
                       ),
                     ),
                     coordinateUnit: CoordinateUnit.point,

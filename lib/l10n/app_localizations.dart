@@ -652,6 +652,42 @@ abstract class AppLocalizations {
   /// **'전략 요약 정보가 없습니다.'**
   String get strategySummaryEmpty;
 
+  /// No description provided for @kimchiStrategyDetailSettingsLine.
+  ///
+  /// In ko, this message translates to:
+  /// **'설정값(보정 후 김프) · 매수 ≤{buyPct}% · 매도 ≥{sellPct}%'**
+  String kimchiStrategyDetailSettingsLine(String buyPct, String sellPct);
+
+  /// No description provided for @kimchiStrategyDetailFxLine.
+  ///
+  /// In ko, this message translates to:
+  /// **'이 시점 환율 · {fx}원'**
+  String kimchiStrategyDetailFxLine(String fx);
+
+  /// No description provided for @kimchiStrategyDetailDeltaLine.
+  ///
+  /// In ko, this message translates to:
+  /// **'구간 보정(Δ) · {deltaSigned} pp'**
+  String kimchiStrategyDetailDeltaLine(String deltaSigned);
+
+  /// No description provided for @kimchiStrategyDetailAppliedLine.
+  ///
+  /// In ko, this message translates to:
+  /// **'가격선 적용(설정 − Δ) · 매수 {buyApp}% · 매도 {sellApp}%'**
+  String kimchiStrategyDetailAppliedLine(String buyApp, String sellApp);
+
+  /// No description provided for @kimchiStrategyDetailDeltaUnavailable.
+  ///
+  /// In ko, this message translates to:
+  /// **'(이 시점 환율을 찾지 못해 구간 Δ·가격선 비율은 생략됩니다)'**
+  String get kimchiStrategyDetailDeltaUnavailable;
+
+  /// No description provided for @kimchiStrategyDetailFootnote.
+  ///
+  /// In ko, this message translates to:
+  /// **'가격선 비율은 시뮬과 같이 환율×(1+값/100)에 들어갑니다. 설정 %는 「보정 후 김프」 기준입니다.'**
+  String get kimchiStrategyDetailFootnote;
+
   /// No description provided for @sellIfCurrentPrice.
   ///
   /// In ko, this message translates to:
@@ -1107,6 +1143,18 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'김치 프리미엄이 입력한 % 이상일 때 매도 신호를 검토합니다. 값을 높이면 프리미엄이 더 커졌을 때만 매도하려 하고, 낮추면 비교적 작은 프리미엄에서도 매도 후보가 됩니다.'**
   String get kimchiSellThresholdHelpBody;
+
+  /// No description provided for @kimchiFxDeltaCorrectionLabel.
+  ///
+  /// In ko, this message translates to:
+  /// **'환율 구간별 김프 델타 보정(서버 JSON)'**
+  String get kimchiFxDeltaCorrectionLabel;
+
+  /// No description provided for @kimchiFxDeltaCorrectionHelpBody.
+  ///
+  /// In ko, this message translates to:
+  /// **'켜면 서버 `/api/kimchi-fx-delta`(USD/KRW 퀀타일별 델타)를 받아 김프 임계에 맞춥니다. 공식은 보정 후 김프(%) ≈ 원시 김프 + 델타이며, 시뮬·차트 김프 매매선·오늘의 코멘트에 동일하게 적용됩니다.'**
+  String get kimchiFxDeltaCorrectionHelpBody;
 }
 
 class _AppLocalizationsDelegate

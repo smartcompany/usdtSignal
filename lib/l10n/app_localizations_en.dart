@@ -295,6 +295,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String get strategySummaryEmpty => 'No strategy summary available.';
 
   @override
+  String kimchiStrategyDetailSettingsLine(String buyPct, String sellPct) {
+    return 'Settings · buy ≤ $buyPct% · sell ≥ $sellPct% (adjusted premium)';
+  }
+
+  @override
+  String kimchiStrategyDetailFxLine(String fx) {
+    return 'USD/KRW · $fx';
+  }
+
+  @override
+  String kimchiStrategyDetailDeltaLine(String deltaSigned) {
+    return 'Bucket Δ · $deltaSigned pp';
+  }
+
+  @override
+  String kimchiStrategyDetailAppliedLine(String buyApp, String sellApp) {
+    return 'Price-line % (setting − Δ) · buy $buyApp% · sell $sellApp%';
+  }
+
+  @override
+  String get kimchiStrategyDetailDeltaUnavailable =>
+      '(USD/KRW not found for this bar; Δ and applied % omitted.)';
+
+  @override
+  String get kimchiStrategyDetailFootnote =>
+      'These percentages match simulation: target KRW = USD/KRW × (1 + p/100). Values shown use the same logic as the app.';
+
+  @override
   String get sellIfCurrentPrice => 'Sell if current price';
 
   @override
@@ -549,4 +577,12 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kimchiSellThresholdHelpBody =>
       'Premium at or above this percent is treated as a sell signal. Higher values wait for a larger premium before selling; lower values may sell on smaller premiums.';
+
+  @override
+  String get kimchiFxDeltaCorrectionLabel =>
+      'FX-bucket kimchi delta (server JSON)';
+
+  @override
+  String get kimchiFxDeltaCorrectionHelpBody =>
+      'Uses `/api/kimchi-fx-delta` quintile deltas added to raw premium before comparing to your buy/sell % thresholds (prem_adj ≈ raw + Δ). Applies to kimchi simulation, chart trade lines, and today’s kimchi commentary.';
 }

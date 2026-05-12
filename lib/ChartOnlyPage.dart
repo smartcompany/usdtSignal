@@ -6,6 +6,7 @@ import 'package:usdt_signal/simulation_page.dart';
 import 'package:usdt_signal/widgets.dart';
 import 'package:usdt_signal/l10n/app_localizations.dart';
 import 'api_service.dart';
+import 'kimchi_fx_delta.dart';
 import 'utils.dart';
 import 'simulation_model.dart';
 import 'dialogs/liquid_glass_dialog.dart';
@@ -153,6 +154,7 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
       });
       _autoZoomToAITrades();
     } else if (showGimchiTrading) {
+      await KimchiFxDeltaStore.instance.ensureLoaded(ApiService.shared);
       setState(() {
         showAITrading = false;
         showKimchiPremium = false;
@@ -387,6 +389,8 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
         (widget.exchangeRates.isNotEmpty)
             ? widget.exchangeRates.last.value
             : 0.0;
+    /// 매수·매도 마커 툴팁에 넣을 USD/KRW (김프 선과 동일 시점)
+    double markerExchangeRate = currentExchangeRate;
 
     if (showAITrading || showGimchiTrading) {
       if (simulationType == SimulationType.ai) {
@@ -431,6 +435,7 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
               targetDate: widget.usdtChartData.last.time,
             );
 
+            markerExchangeRate = exchangeRateValue;
             final buyPrice = exchangeRateValue * (1 + buyThreshold / 100);
             final sellPrice = exchangeRateValue * (1 + sellThreshold / 100);
 
@@ -471,7 +476,8 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
     final axisLineColor = cs.outline.withValues(alpha: 0.55);
 
     return SfCartesianChart(
-      onTooltipRender: (TooltipArgs args) => _handleTooltipRender(args, l10n),
+      onTooltipRender:
+          (TooltipArgs args) => _handleTooltipRender(context, args, l10n),
       plotAreaBackgroundColor: chartSurface,
       plotAreaBorderColor: axisLineColor,
       plotAreaBorderWidth: 0,
@@ -497,6 +503,9 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
                 true, // isBuy
                 buyPoint.price,
                 buyPoint.kimchiPremium,
+                exchangeRate:
+                    markerExchangeRate > 0 ? markerExchangeRate : null,
+                localeTag: Localizations.localeOf(context).toLanguageTag(),
               ),
             ),
             coordinateUnit: CoordinateUnit.point,
@@ -513,6 +522,9 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
                 false, // isBuy
                 sellPoint.price,
                 sellPoint.kimchiPremium,
+                exchangeRate:
+                    markerExchangeRate > 0 ? markerExchangeRate : null,
+                localeTag: Localizations.localeOf(context).toLanguageTag(),
               ),
             ),
             coordinateUnit: CoordinateUnit.point,
@@ -726,7 +738,11 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
   }
 
   // 툴팁 렌더링 처리
-  void _handleTooltipRender(TooltipArgs args, AppLocalizations l10n) {
+  void _handleTooltipRender(
+    BuildContext context,
+    TooltipArgs args,
+    AppLocalizations l10n,
+  ) {
     final pointIndex = args.pointIndex?.toInt() ?? 0;
     final clickedPoint = args.dataPoints?[pointIndex];
     if (clickedPoint == null) return;
@@ -753,8 +769,16 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
       }
     }
 
+    final nfFx = NumberFormat(
+      '#,##0.#',
+      Localizations.localeOf(context).toLanguageTag(),
+    );
+    final fxLine =
+        exchangeRate > 0
+            ? '\n${l10n.exchangeRate}: ${nfFx.format(exchangeRate)}'
+            : '';
     String newText =
-        '${args.text}\n${l10n.gimchiPremiem}: ${kimchiPremiumValue.toStringAsFixed(2)}%';
+        '${args.text}$fxLine\n${l10n.gimchiPremiem}: ${kimchiPremiumValue.toStringAsFixed(2)}%';
 
     // '환율' 시리즈의 툴팁에만 변동률 추가
     if (args.header == l10n.exchangeRate && pointIndex > 0) {
@@ -926,6 +950,9 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
                       final cap =
                           await SimulationCondition.instance.getInitialCapitalKrw();
                       if (!mounted) return;
+                      await KimchiFxDeltaStore.instance.ensureLoaded(
+                        ApiService.shared,
+                      );
                       final results = SimulationModel.gimchiSimulateResults(
                         widget.exchangeRates,
                         widget.strategyList,
@@ -1028,7 +1055,13 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
 
   // 환율 데이터를 날짜로 조회하는 함수 추가
   double getExchangeRate(DateTime date) {
-    // 날짜가 같은 환율 데이터 찾기 (날짜만 비교)
+    if (widget.hourlyGranularity) {
+      for (final rate in widget.exchangeRates) {
+        if (rate.time == date) return rate.value;
+      }
+      return 0.0;
+    }
+    // 일봉: 같은 날짜의 환율
     for (final rate in widget.exchangeRates) {
       if (rate.time.year == date.year &&
           rate.time.month == date.month &&
@@ -1041,6 +1074,14 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
 
   // USDT 데이터를 날짜로 조회하는 함수 추가
   double getUsdtValue(DateTime date) {
+    if (widget.hourlyGranularity) {
+      final bar = widget.usdtMap[date];
+      if (bar != null) return bar.close;
+      for (final usdt in widget.usdtChartData) {
+        if (usdt.time == date) return usdt.close;
+      }
+      return 0.0;
+    }
     for (final usdt in widget.usdtChartData) {
       if (usdt.time.year == date.year &&
           usdt.time.month == date.month &&

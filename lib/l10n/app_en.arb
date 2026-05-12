@@ -111,6 +111,30 @@
       }
     }
   },
+  "kimchiStrategyDetailSettingsLine": "Settings · buy ≤ {buyPct}% · sell ≥ {sellPct}% (adjusted premium)",
+  "@kimchiStrategyDetailSettingsLine": {
+    "placeholders": {
+      "buyPct": { "type": "String" },
+      "sellPct": { "type": "String" }
+    }
+  },
+  "kimchiStrategyDetailFxLine": "USD/KRW · {fx}",
+  "@kimchiStrategyDetailFxLine": {
+    "placeholders": { "fx": { "type": "String" } }
+  },
+  "kimchiStrategyDetailDeltaLine": "Bucket Δ · {deltaSigned} pp",
+  "@kimchiStrategyDetailDeltaLine": {
+    "placeholders": { "deltaSigned": { "type": "String" } }
+  },
+  "kimchiStrategyDetailAppliedLine": "Price-line % (setting − Δ) · buy {buyApp}% · sell {sellApp}%",
+  "@kimchiStrategyDetailAppliedLine": {
+    "placeholders": {
+      "buyApp": { "type": "String" },
+      "sellApp": { "type": "String" }
+    }
+  },
+  "kimchiStrategyDetailDeltaUnavailable": "(USD/KRW not found for this bar; Δ and applied % omitted.)",
+  "kimchiStrategyDetailFootnote": "These percentages match simulation: target KRW = USD/KRW × (1 + p/100). Values shown use the same logic as the app.",
   "sellIfCurrentPrice": "Sell if current price",
   "onboardingTitle1": "The Hidden Price Difference of USDT",
   "onboardingBody1": "While 1 USDT = 1 USD overseas, Korean exchanges show different prices due to exchange rates and 'K-Premium'. Understanding this difference can help you profit.",
@@ -216,5 +240,7 @@
   "kimchiFxBuyMaxHelpBody": "When the exchange rate is at or above this value, K-premium buys are skipped to help improve returns.",
   "kimchiFxSellMinHelpBody": "When the exchange rate is at or below this value, K-premium sells are skipped to help improve returns.",
   "kimchiBuyThresholdHelpBody": "Kimchi premium (how much Korea’s USDT price sits above the USD/KRW rate) at or below this percent is treated as a buy signal. Lower values aim to buy when the premium is smaller; higher values allow buying sooner.",
-  "kimchiSellThresholdHelpBody": "Premium at or above this percent is treated as a sell signal. Higher values wait for a larger premium before selling; lower values may sell on smaller premiums."
+  "kimchiSellThresholdHelpBody": "Premium at or above this percent is treated as a sell signal. Higher values wait for a larger premium before selling; lower values may sell on smaller premiums.",
+  "kimchiFxDeltaCorrectionLabel": "FX-bucket kimchi delta (server JSON)",
+  "kimchiFxDeltaCorrectionHelpBody": "Uses `/api/kimchi-fx-delta` quintile deltas added to raw premium before comparing to your buy/sell % thresholds (prem_adj ≈ raw + Δ). Applies to kimchi simulation, chart trade lines, and today’s kimchi commentary."
 }

@@ -293,6 +293,34 @@ class AppLocalizationsZh extends AppLocalizations {
   String get strategySummaryEmpty => '暂无策略摘要。';
 
   @override
+  String kimchiStrategyDetailSettingsLine(String buyPct, String sellPct) {
+    return '设定 · 买入阈值 $buyPct% · 卖出阈值 $sellPct%（按调整后溢价）';
+  }
+
+  @override
+  String kimchiStrategyDetailFxLine(String fx) {
+    return '该时点汇率 · $fx 韩元';
+  }
+
+  @override
+  String kimchiStrategyDetailDeltaLine(String deltaSigned) {
+    return '区间修正(Δ) · $deltaSigned 个百分点';
+  }
+
+  @override
+  String kimchiStrategyDetailAppliedLine(String buyApp, String sellApp) {
+    return '价格线采用(设定 − Δ) · 买 $buyApp% · 卖 $sellApp%';
+  }
+
+  @override
+  String get kimchiStrategyDetailDeltaUnavailable =>
+      '（未查到该时点汇率，暂不显示区间 Δ 与价格线比例。）';
+
+  @override
+  String get kimchiStrategyDetailFootnote =>
+      '与模拟一致：目标韩元价 = 汇率×(1+上式/100)。阈值按「调整后溢价」比较。';
+
+  @override
   String get sellIfCurrentPrice => '当前价格卖出';
 
   @override
@@ -532,4 +560,11 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get kimchiSellThresholdHelpBody =>
       '当溢价大于或等于该百分比时，会考虑卖出。数值越高需要溢价更大才卖，越低则对较小溢价也可能卖出。';
+
+  @override
+  String get kimchiFxDeltaCorrectionLabel => '按汇率区间的泡菜溢价Δ（服务端 JSON）';
+
+  @override
+  String get kimchiFxDeltaCorrectionHelpBody =>
+      '开启后从服务端 `/api/kimchi-fx-delta` 读取按 USD/KRW 分段的 Δ（百分点），与阈值比较前先加到原始泡菜溢价上（近似：调整后 ≈ 原始 + Δ）。对泡菜模拟、图表买卖线与当日点评一致生效。';
 }

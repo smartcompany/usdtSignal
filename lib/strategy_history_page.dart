@@ -7,6 +7,8 @@ import 'api_service.dart';
 import 'l10n/app_localizations.dart';
 import 'utils.dart';
 import 'dialogs/liquid_glass_dialog.dart';
+import 'kimchi_fx_delta.dart';
+import 'kimchi_strategy_explain.dart';
 
 class StrategyHistoryPage extends StatefulWidget {
   final SimulationType simulationType;
@@ -251,7 +253,9 @@ class _StrategyHistoryPageState extends State<StrategyHistoryPage> {
                   ],
                 ),
                 child: InkWell(
-                  onTap: () => _showKimchiStrategyDetail(context, date),
+                  onTap: () {
+                    _showKimchiStrategyDetail(context, date);
+                  },
                   borderRadius: BorderRadius.circular(20),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -353,7 +357,9 @@ class _StrategyHistoryPageState extends State<StrategyHistoryPage> {
                   ],
                 ),
                 child: InkWell(
-                  onTap: () => _showStrategyDetail(context, strategy, date),
+                  onTap: () {
+                    _showStrategyDetail(context, strategy, date);
+                  },
                   borderRadius: BorderRadius.circular(20),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -535,11 +541,15 @@ class _StrategyHistoryPageState extends State<StrategyHistoryPage> {
     );
   }
 
-  void _showStrategyDetail(
+  Future<void> _showStrategyDetail(
     BuildContext context,
     StrategyMap strategy,
     DateTime date,
-  ) {
+  ) async {
+    if (widget.simulationType == SimulationType.kimchi) {
+      await KimchiFxDeltaStore.instance.ensureLoaded(ApiService.shared);
+    }
+    if (!context.mounted) return;
     // 기존의 _showStrategyDialog와 동일한 로직 사용
     showDialog(
       context: context,
@@ -643,7 +653,12 @@ class _StrategyHistoryPageState extends State<StrategyHistoryPage> {
     );
   }
 
-  void _showKimchiStrategyDetail(BuildContext context, DateTime date) {
+  Future<void> _showKimchiStrategyDetail(
+    BuildContext context,
+    DateTime date,
+  ) async {
+    await KimchiFxDeltaStore.instance.ensureLoaded(ApiService.shared);
+    if (!context.mounted) return;
     LiquidGlassDialog.show(
       context: context,
       title: Text(
@@ -672,16 +687,18 @@ class _StrategyHistoryPageState extends State<StrategyHistoryPage> {
       targetDate: date,
     );
 
-    return Text(
-      AppLocalizations.of(context)!.kimchiStrategyComment(
-        double.parse(buyThreshold.toStringAsFixed(1)),
-        double.parse(sellThreshold.toStringAsFixed(1)),
-      ),
-      style: TextStyle(
-        fontSize: 16,
-        color: Theme.of(context).colorScheme.onSurface,
-        height: 1.45,
-      ),
+    final fx = lookupUsdKrwForKimchiDialog(
+      rates: widget.usdExchangeRates,
+      date: date,
+      hourlyGranularity: false,
+    );
+
+    return buildKimchiStrategyExplanationContent(
+      context: context,
+      l10n: AppLocalizations.of(context)!,
+      buyBase: buyThreshold,
+      sellBase: sellThreshold,
+      fx: fx,
     );
   }
 

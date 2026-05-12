@@ -111,6 +111,30 @@
       }
     }
   },
+  "kimchiStrategyDetailSettingsLine": "设定 · 买入阈值 {buyPct}% · 卖出阈值 {sellPct}%（按调整后溢价）",
+  "@kimchiStrategyDetailSettingsLine": {
+    "placeholders": {
+      "buyPct": { "type": "String" },
+      "sellPct": { "type": "String" }
+    }
+  },
+  "kimchiStrategyDetailFxLine": "该时点汇率 · {fx} 韩元",
+  "@kimchiStrategyDetailFxLine": {
+    "placeholders": { "fx": { "type": "String" } }
+  },
+  "kimchiStrategyDetailDeltaLine": "区间修正(Δ) · {deltaSigned} 个百分点",
+  "@kimchiStrategyDetailDeltaLine": {
+    "placeholders": { "deltaSigned": { "type": "String" } }
+  },
+  "kimchiStrategyDetailAppliedLine": "价格线采用(设定 − Δ) · 买 {buyApp}% · 卖 {sellApp}%",
+  "@kimchiStrategyDetailAppliedLine": {
+    "placeholders": {
+      "buyApp": { "type": "String" },
+      "sellApp": { "type": "String" }
+    }
+  },
+  "kimchiStrategyDetailDeltaUnavailable": "（未查到该时点汇率，暂不显示区间 Δ 与价格线比例。）",
+  "kimchiStrategyDetailFootnote": "与模拟一致：目标韩元价 = 汇率×(1+上式/100)。阈值按「调整后溢价」比较。",
   "sellIfCurrentPrice": "当前价格卖出",
   "onboardingTitle1": "USDT的隐藏价差",
   "onboardingBody1": "虽然海外1 USDT = 1 USD，但韩国交易所因汇率和“泡菜溢价”而价格不同。了解这个差异可以帮助您盈利。",
@@ -213,5 +237,7 @@
   "kimchiFxBuyMaxHelpBody": "当汇率高于或等于设定值时跳过买入，有助于改善收益。",
   "kimchiFxSellMinHelpBody": "当汇率低于或等于设定值时跳过卖出，有助于改善收益。",
   "kimchiBuyThresholdHelpBody": "当韩国 USDT 相对美元兑韩元汇率的泡菜溢价小于或等于该百分比时，会考虑买入。数值越低越偏向“更便宜才买”，越高则越早考虑买入。",
-  "kimchiSellThresholdHelpBody": "当溢价大于或等于该百分比时，会考虑卖出。数值越高需要溢价更大才卖，越低则对较小溢价也可能卖出。"
+  "kimchiSellThresholdHelpBody": "当溢价大于或等于该百分比时，会考虑卖出。数值越高需要溢价更大才卖，越低则对较小溢价也可能卖出。",
+  "kimchiFxDeltaCorrectionLabel": "按汇率区间的泡菜溢价Δ（服务端 JSON）",
+  "kimchiFxDeltaCorrectionHelpBody": "开启后从服务端 `/api/kimchi-fx-delta` 读取按 USD/KRW 分段的 Δ（百分点），与阈值比较前先加到原始泡菜溢价上（近似：调整后 ≈ 原始 + Δ）。对泡菜模拟、图表买卖线与当日点评一致生效。"
 }

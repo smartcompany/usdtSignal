@@ -294,6 +294,34 @@ class AppLocalizationsKo extends AppLocalizations {
   String get strategySummaryEmpty => '전략 요약 정보가 없습니다.';
 
   @override
+  String kimchiStrategyDetailSettingsLine(String buyPct, String sellPct) {
+    return '설정값(보정 후 김프) · 매수 ≤$buyPct% · 매도 ≥$sellPct%';
+  }
+
+  @override
+  String kimchiStrategyDetailFxLine(String fx) {
+    return '이 시점 환율 · $fx원';
+  }
+
+  @override
+  String kimchiStrategyDetailDeltaLine(String deltaSigned) {
+    return '구간 보정(Δ) · $deltaSigned pp';
+  }
+
+  @override
+  String kimchiStrategyDetailAppliedLine(String buyApp, String sellApp) {
+    return '가격선 적용(설정 − Δ) · 매수 $buyApp% · 매도 $sellApp%';
+  }
+
+  @override
+  String get kimchiStrategyDetailDeltaUnavailable =>
+      '(이 시점 환율을 찾지 못해 구간 Δ·가격선 비율은 생략됩니다)';
+
+  @override
+  String get kimchiStrategyDetailFootnote =>
+      '가격선 비율은 시뮬과 같이 환율×(1+값/100)에 들어갑니다. 설정 %는 「보정 후 김프」 기준입니다.';
+
+  @override
   String get sellIfCurrentPrice => '현재가 매도시';
 
   @override
@@ -537,4 +565,11 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String get kimchiSellThresholdHelpBody =>
       '김치 프리미엄이 입력한 % 이상일 때 매도 신호를 검토합니다. 값을 높이면 프리미엄이 더 커졌을 때만 매도하려 하고, 낮추면 비교적 작은 프리미엄에서도 매도 후보가 됩니다.';
+
+  @override
+  String get kimchiFxDeltaCorrectionLabel => '환율 구간별 김프 델타 보정(서버 JSON)';
+
+  @override
+  String get kimchiFxDeltaCorrectionHelpBody =>
+      '켜면 서버 `/api/kimchi-fx-delta`(USD/KRW 퀀타일별 델타)를 받아 김프 임계에 맞춥니다. 공식은 보정 후 김프(%) ≈ 원시 김프 + 델타이며, 시뮬·차트 김프 매매선·오늘의 코멘트에 동일하게 적용됩니다.';
 }
