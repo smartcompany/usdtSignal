@@ -30,6 +30,45 @@ class SimulationModel {
         .toList();
   }
 
+  /// 일별 장부 평가금(현금 또는 보유 시 종가 기준 USDT 평가). `buyPrice <= 0`이면 현금만.
+  static double _bookEquityKrw(
+    DateTime date,
+    Map<DateTime, USDTChartData> usdtMap,
+    DateTime? buyDate,
+    double buyPrice,
+    double totalKRW,
+  ) {
+    if (buyDate == null || buyPrice <= 0) return totalKRW;
+    final close = usdtMap[date]?.close ?? 0.0;
+    return (totalKRW / buyPrice) * close;
+  }
+
+  static double _bookEquityKrwGimchi(
+    DateTime date,
+    Map<DateTime, USDTChartData> usdtMap,
+    double? buyPrice,
+    double totalKRW,
+  ) {
+    if (buyPrice == null || buyPrice <= 0) return totalKRW;
+    final close = usdtMap[date]?.close ?? 0.0;
+    return (totalKRW / buyPrice) * close;
+  }
+
+  /// 피크 대비 최대 낙폭(%). `equity`가 비어 있으면 0.
+  static double maxDrawdownPercent(List<double> equitySeries) {
+    if (equitySeries.isEmpty) return 0;
+    var peak = equitySeries.first;
+    var maxDd = 0.0;
+    for (final e in equitySeries) {
+      if (e > peak) peak = e;
+      if (peak <= 0) continue;
+      final dd = (peak - e) / peak;
+      if (dd > maxDd) maxDd = dd;
+    }
+    if (maxDd.isNaN || maxDd.isInfinite) return 0;
+    return maxDd * 100;
+  }
+
   // simResults 생성 로직을 별도 함수로 분리
   static List<SimulationResult> simulateResults(
     List<ChartData> usdExchangeRates,
@@ -39,6 +78,7 @@ class SimulationModel {
     double? buyFee,
     double? sellFee,
     bool? useCompoundInterest,
+    List<double>? dailyEquityOut,
   }) {
     final compound =
         useCompoundInterest ?? SimulationCondition.instance.simulationCompoundInterest;
@@ -90,6 +130,9 @@ class SimulationModel {
       final highPrice = usdtMap[date]?.high ?? 0;
 
       if (buyStrategyPrice == null || sellStrategyPrice == null) {
+        dailyEquityOut?.add(
+          _bookEquityKrw(date, usdtMap, buyDate, buyPrice, totalKRW),
+        );
         continue;
       }
 
@@ -103,7 +146,12 @@ class SimulationModel {
             buyPrice = buyPrice * (1 + buyFee / 100);
           }
         }
-        if (buyDate == null) continue;
+        if (buyDate == null) {
+          dailyEquityOut?.add(
+            _bookEquityKrw(date, usdtMap, buyDate, buyPrice, totalKRW),
+          );
+          continue;
+        }
       }
 
       final high = usdtMap[date]?.high ?? 0;
@@ -152,6 +200,9 @@ class SimulationModel {
           usdExchangeRateAtSell: null, // 매도 시점은 아직 없음
         );
       }
+      dailyEquityOut?.add(
+        _bookEquityKrw(date, usdtMap, buyDate, buyPrice, totalKRW),
+      );
     }
 
     if (unselledResult != null) {
@@ -239,6 +290,7 @@ class SimulationModel {
     double? buyFee,
     double? sellFee,
     bool? useCompoundInterest,
+    List<double>? dailyEquityOut,
   }) {
     final compound =
         useCompoundInterest ?? SimulationCondition.instance.simulationCompoundInterest;
@@ -333,7 +385,12 @@ class SimulationModel {
         }
       }
 
-      if (buyPrice == null) continue;
+      if (buyPrice == null) {
+        dailyEquityOut?.add(
+          _bookEquityKrwGimchi(date, usdtMap, buyPrice, totalKRW),
+        );
+        continue;
+      }
 
       bool canSell = _isSellCondition(usdtMap, date, buyDate);
 
@@ -386,6 +443,7 @@ class SimulationModel {
 
         // 다음 거래: 복리면 매도 후 금액, 아니면 초기 자본만 매수에 사용
         totalKRW = compound ? finalKRW : initialKRW;
+        dailyEquityOut?.add(totalKRW);
         buyDate = null;
         buyPrice = null;
         sellPrice = null;
@@ -407,6 +465,9 @@ class SimulationModel {
           finalUSDT: usdtCount,
           usdExchangeRateAtBuy: usdExchangeRatesMap[buyDate],
           usdExchangeRateAtSell: null,
+        );
+        dailyEquityOut?.add(
+          _bookEquityKrwGimchi(date, usdtMap, buyPrice, totalKRW),
         );
       }
     }

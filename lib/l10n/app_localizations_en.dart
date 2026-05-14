@@ -171,6 +171,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get stackedFinalKRW => 'Final ₩';
 
   @override
+  String get simulationMdd => 'MDD';
+
+  @override
+  String get simulationMddHelpTooltip => 'About MDD';
+
+  @override
+  String get simulationMddHelpBody =>
+      'Maximum drawdown (MDD) is the largest peak-to-trough drop of the simulated book value, measured day by day over the period.\n\nCash days use your KRW balance; while holding USDT we mark to market using that day’s close. Fees follow your simulation settings, but slippage, taxes, and other real-world effects are not modeled, so this may differ from a live account’s MDD.';
+
+  @override
   String get currencyWonSuffix => ' KRW';
 
   @override

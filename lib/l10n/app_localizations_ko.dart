@@ -171,6 +171,16 @@ class AppLocalizationsKo extends AppLocalizations {
   String get stackedFinalKRW => '누적 최종 원화';
 
   @override
+  String get simulationMdd => 'MDD';
+
+  @override
+  String get simulationMddHelpTooltip => 'MDD 설명';
+
+  @override
+  String get simulationMddHelpBody =>
+      '최대 낙폭(MDD)은 시뮬 기간 안에서 매일 기록한 장부 평가금의 고점(피크) 대비, 가장 크게 내려간 비율입니다.\n\n현금일 때는 그날 원화 잔액을, 테더를 보유 중이면 그날 종가로 환산한 평가금을 씁니다. 업비트 수수료 등 시뮬 설정은 반영하지만, 슬리피지·세금 등은 넣지 않았으므로 실제 계좌의 MDD와 다를 수 있습니다.';
+
+  @override
   String get currencyWonSuffix => '원';
 
   @override

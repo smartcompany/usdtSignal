@@ -694,6 +694,8 @@ class _SimulationPageState extends State<SimulationPage>
   final NumberFormat krwFormat = NumberFormat("#,##0.#", "ko_KR");
   double totalProfitRate = 0; // 총 수익률 변수 추가
   double _initialCapitalKrw = 1000000;
+  /// 일별 장부 평가금 기준 최대 낙폭(%). `simulateResults` / `gimchiSimulateResults`와 동일 정의.
+  double _maxDrawdownPercent = 0;
 
   String _simDateLabel(DateTime? d, {String empty = "-"}) {
     if (d == null) {
@@ -747,6 +749,7 @@ class _SimulationPageState extends State<SimulationPage>
       final initial = await SimulationCondition.instance.getInitialCapitalKrw();
 
       if (widget.simulationType == SimulationType.ai) {
+        final dailyEquity = <double>[];
         final simResults = SimulationModel.simulateResults(
           usdExchangeRates,
           strategyList,
@@ -754,16 +757,20 @@ class _SimulationPageState extends State<SimulationPage>
           initialKRW: initial,
           buyFee: buyFee,
           sellFee: sellFee,
+          dailyEquityOut: dailyEquity,
         );
+        final mdd = SimulationModel.maxDrawdownPercent(dailyEquity);
 
         setState(() {
           _initialCapitalKrw = initial;
           strategies = List<StrategyMap>.from(strategyList);
           results = simResults;
+          _maxDrawdownPercent = mdd;
           loading = false;
         });
       } else if (widget.simulationType == SimulationType.kimchi) {
         await KimchiFxDeltaStore.instance.ensureLoaded(ApiService.shared);
+        final dailyEquity = <double>[];
         final simResults = SimulationModel.gimchiSimulateResults(
           usdExchangeRates,
           strategyList,
@@ -772,12 +779,15 @@ class _SimulationPageState extends State<SimulationPage>
           initialKRW: initial,
           buyFee: buyFee,
           sellFee: sellFee,
+          dailyEquityOut: dailyEquity,
         );
+        final mdd = SimulationModel.maxDrawdownPercent(dailyEquity);
 
         setState(() {
           _initialCapitalKrw = initial;
           strategies = List<StrategyMap>.from(strategyList);
           results = simResults;
+          _maxDrawdownPercent = mdd;
           loading = false;
         });
       }
@@ -786,6 +796,7 @@ class _SimulationPageState extends State<SimulationPage>
       setState(() {
         error = e.toString();
         loading = false;
+        _maxDrawdownPercent = 0;
       });
     }
   }
@@ -1384,6 +1395,7 @@ class _SimulationPageState extends State<SimulationPage>
         '${loc.totalGain}: ${loc.dash}',
         '${loc.annualAvgReturn}: ${loc.dash}',
         '${loc.stackedFinalKRW}: ${loc.dash}',
+        '${loc.simulationMdd}: ${loc.dash}',
         url,
       ].join('\n');
     }
@@ -1418,6 +1430,8 @@ class _SimulationPageState extends State<SimulationPage>
           '${annualYield >= 0 ? '+' : ''}${annualYield.toStringAsFixed(2)}%';
     }
     final finalKrw = '₩${krwFormat.format(endWealth.round())}';
+    final mddLine =
+        '${loc.simulationMdd}: ${_maxDrawdownPercent.toStringAsFixed(2)}%';
     return [
       headline,
       loc.initialCapital(cap),
@@ -1425,6 +1439,7 @@ class _SimulationPageState extends State<SimulationPage>
       '${loc.totalGain}: $gainLine',
       '${loc.annualAvgReturn}: $annualYieldLine',
       '${loc.stackedFinalKRW}: $finalKrw',
+      mddLine,
       url,
     ].join('\n');
   }
@@ -1786,6 +1801,52 @@ class _SimulationPageState extends State<SimulationPage>
                           style: _CardStyles.headerCardValue(context),
                         );
                       },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      l10n(context).simulationMdd,
+                      style: _BodyStyles.greyLabelText(context),
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Builder(
+                          builder: (context) {
+                            if (results.isEmpty) {
+                              return Text(
+                                "-",
+                                style: _CardStyles.headerCardValue(context),
+                              );
+                            }
+                            return Text(
+                              "${_maxDrawdownPercent.toStringAsFixed(2)}%",
+                              style: _CardStyles.headerCardValue(context),
+                            );
+                          },
+                        ),
+                        IconButton(
+                          tooltip: l10n(context).simulationMddHelpTooltip,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
+                          icon: Icon(
+                            Icons.help_outline,
+                            size: 20,
+                            color: cs.onSurfaceVariant,
+                          ),
+                          onPressed:
+                              loading
+                                  ? null
+                                  : () => _showMddHelpDialog(context),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -2415,6 +2476,38 @@ class _SimulationPageState extends State<SimulationPage>
           ),
         ),
       ),
+    );
+  }
+
+  void _showMddHelpDialog(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    LiquidGlassDialog.show(
+      context: context,
+      title: Row(
+        children: [
+          Icon(Icons.help_outline, color: cs.primary, size: 24),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              l10n(context).simulationMdd,
+              style: _TitleStyles.dialogTitle(context),
+            ),
+          ),
+        ],
+      ),
+      content: Text(
+        l10n(context).simulationMddHelpBody,
+        style: _DialogStyles.bodyText(context),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(
+            l10n(context).confirm,
+            style: TextStyle(color: cs.primary),
+          ),
+        ),
+      ],
     );
   }
 

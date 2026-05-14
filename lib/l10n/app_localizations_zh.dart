@@ -170,6 +170,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get stackedFinalKRW => '累计最终韩元';
 
   @override
+  String get simulationMdd => 'MDD';
+
+  @override
+  String get simulationMddHelpTooltip => 'MDD 说明';
+
+  @override
+  String get simulationMddHelpBody =>
+      '最大回撤（MDD）指在模拟区间内，按日记录的账面权益相对历史峰值的最大跌幅比例。\n\n持有现金时用当日韩元余额；持有 USDT 时按当日收盘价折算估值。已按模拟设置计入手续费，但不包含滑点、税费等，因此可能与真实账户的最大回撤不同。';
+
+  @override
   String get currencyWonSuffix => ' 韩元';
 
   @override
