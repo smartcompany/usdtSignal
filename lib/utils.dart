@@ -113,11 +113,7 @@ class SimulationCondition {
   bool _kimchiFxDeltaCorrectionEnabled = false;
   bool get kimchiFxDeltaCorrectionEnabled => _kimchiFxDeltaCorrectionEnabled;
 
-  /// `true`: 서버 JSON 대신 아래 클라이언트 튜닝으로 델타 계산(method·수치).
-  bool _kimchiFxDeltaClientOverrideEnabled = false;
   KimchiFxDeltaClientTuning? _kimchiFxDeltaClientTuning;
-  bool get kimchiFxDeltaClientOverrideEnabled =>
-      _kimchiFxDeltaClientOverrideEnabled;
   KimchiFxDeltaClientTuning? get kimchiFxDeltaClientTuning =>
       _kimchiFxDeltaClientTuning;
 
@@ -149,28 +145,17 @@ class SimulationCondition {
   }
 
   static void readKimchiFxDeltaClientTuningSync(SharedPreferences prefs) {
-    var over = prefs.getBool('kimchiFxDeltaClientOverride') ?? false;
     String? js = prefs.getString('kimchiFxDeltaClientTuningJson');
-    final missingDirect =
-        !prefs.containsKey('kimchiFxDeltaClientOverride') ||
-        !prefs.containsKey('kimchiFxDeltaClientTuningJson');
-    if (missingDirect) {
+    if (!prefs.containsKey('kimchiFxDeltaClientTuningJson')) {
       final raw = prefs.getString('userData');
       if (raw != null) {
         try {
           final map = Map<String, dynamic>.from(jsonDecode(raw) as Map);
-          if (!prefs.containsKey('kimchiFxDeltaClientOverride')) {
-            final o = map['kimchiFxDeltaClientOverride'];
-            if (o is bool) over = o;
-          }
-          if (!prefs.containsKey('kimchiFxDeltaClientTuningJson')) {
-            final s = map['kimchiFxDeltaClientTuningJson'];
-            if (s is String) js = s;
-          }
+          final s = map['kimchiFxDeltaClientTuningJson'];
+          if (s is String) js = s;
         } catch (_) {}
       }
     }
-    instance._kimchiFxDeltaClientOverrideEnabled = over;
     instance._kimchiFxDeltaClientTuning =
         KimchiFxDeltaClientTuning.tryDecode(js);
   }
@@ -328,20 +313,17 @@ class SimulationCondition {
     _kimchiFxDeltaCorrectionEnabled = value;
   }
 
-  /// 클라이언트 덮어쓰기 + 서버 userData 동기화.
-  Future<bool> saveKimchiFxDeltaClientTuning({
-    required bool overrideEnabled,
-    required KimchiFxDeltaClientTuning tuning,
-  }) async {
+  /// 세부 설정 적용 시 저장·서버 userData 동기화.
+  Future<bool> saveKimchiFxDeltaClientTuning(
+    KimchiFxDeltaClientTuning tuning,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('kimchiFxDeltaClientOverride', overrideEnabled);
-    await prefs.setString('kimchiFxDeltaClientTuningJson', tuning.encode());
-    _kimchiFxDeltaClientOverrideEnabled = overrideEnabled;
+    final encoded = tuning.encode();
+    await prefs.setString('kimchiFxDeltaClientTuningJson', encoded);
     _kimchiFxDeltaClientTuning = tuning;
     try {
       return await ApiService.shared.saveAndSyncUserData({
-        UserDataKey.kimchiFxDeltaClientOverride: overrideEnabled,
-        UserDataKey.kimchiFxDeltaClientTuningJson: tuning.encode(),
+        UserDataKey.kimchiFxDeltaClientTuningJson: encoded,
       });
     } catch (_) {
       return false;

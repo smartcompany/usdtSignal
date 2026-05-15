@@ -248,7 +248,6 @@
   "kimchiFxDeltaCorrectionHelpBody": "开启后从服务端 `/api/kimchi-fx-delta` 读取 Δ（JSON 可为 USD/KRW 分段或 affine_fx_ratio 汇率比例式），与阈值比较前先加到原始泡菜溢价上（近似：调整后 ≈ 原始 + Δ）。对泡菜模拟、图表买卖线与当日点评一致生效。",
   "kimchiFxDeltaTuningDetail": "详细设置",
   "kimchiFxDeltaTuningTitle": "泡菜溢价 Δ 详细设置",
-  "kimchiFxDeltaTuningUseOverride": "在本机覆盖服务端数值",
   "kimchiFxDeltaTuningMethod": "计算方式",
   "kimchiFxDeltaTuningMethodQuintiles": "分段表 (equal_count_quintiles)",
   "kimchiFxDeltaTuningMethodAffine": "汇率比例 (affine_fx_ratio)",
@@ -259,7 +258,7 @@
   "kimchiFxDeltaTuningClampMax": "clamp_max（留空=不限制）",
   "kimchiFxDeltaTuningDeltaPp": "Δ (百分点)",
   "kimchiFxDeltaTuningApply": "应用",
-  "kimchiFxDeltaTuningReset": "仅使用服务端默认",
+  "kimchiFxDeltaTuningReset": "恢复服务端默认",
   "kimchiFxDeltaTuningNoPayload": "无法加载服务端 Δ JSON，请检查网络后重试。",
   "kimchiFxDeltaTuningSaved": "已保存。",
   "kimchiFxDeltaTuningSaveFailed": "保存失败。"

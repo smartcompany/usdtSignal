@@ -599,9 +599,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get kimchiFxDeltaTuningTitle => '김프 델타 보정 세부 설정';
 
   @override
-  String get kimchiFxDeltaTuningUseOverride => '앱에서 서버 값 덮어쓰기';
-
-  @override
   String get kimchiFxDeltaTuningMethod => '계산 방식';
 
   @override
@@ -633,7 +630,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get kimchiFxDeltaTuningApply => '적용';
 
   @override
-  String get kimchiFxDeltaTuningReset => '서버 기본만 사용';
+  String get kimchiFxDeltaTuningReset => '서버 기본값으로';
 
   @override
   String get kimchiFxDeltaTuningNoPayload =>

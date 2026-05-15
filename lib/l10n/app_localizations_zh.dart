@@ -594,9 +594,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get kimchiFxDeltaTuningTitle => '泡菜溢价 Δ 详细设置';
 
   @override
-  String get kimchiFxDeltaTuningUseOverride => '在本机覆盖服务端数值';
-
-  @override
   String get kimchiFxDeltaTuningMethod => '计算方式';
 
   @override
@@ -628,7 +625,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get kimchiFxDeltaTuningApply => '应用';
 
   @override
-  String get kimchiFxDeltaTuningReset => '仅使用服务端默认';
+  String get kimchiFxDeltaTuningReset => '恢复服务端默认';
 
   @override
   String get kimchiFxDeltaTuningNoPayload => '无法加载服务端 Δ JSON，请检查网络后重试。';

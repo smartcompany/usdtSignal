@@ -251,7 +251,6 @@
   "kimchiFxDeltaCorrectionHelpBody": "Uses `/api/kimchi-fx-delta` deltas (either USD/KRW quintile buckets or the `affine_fx_ratio` formula from JSON) added to raw premium before comparing to your buy/sell % thresholds (prem_adj ≈ raw + Δ). Applies to kimchi simulation, chart trade lines, and today’s kimchi commentary.",
   "kimchiFxDeltaTuningDetail": "Details",
   "kimchiFxDeltaTuningTitle": "Kimchi delta tuning",
-  "kimchiFxDeltaTuningUseOverride": "Override server values on this device",
   "kimchiFxDeltaTuningMethod": "Method",
   "kimchiFxDeltaTuningMethodQuintiles": "Buckets (equal_count_quintiles)",
   "kimchiFxDeltaTuningMethodAffine": "FX ratio (affine_fx_ratio)",
@@ -262,7 +261,7 @@
   "kimchiFxDeltaTuningClampMax": "clamp_max (empty = none)",
   "kimchiFxDeltaTuningDeltaPp": "Δ (pp)",
   "kimchiFxDeltaTuningApply": "Apply",
-  "kimchiFxDeltaTuningReset": "Use server defaults only",
+  "kimchiFxDeltaTuningReset": "Reset to server defaults",
   "kimchiFxDeltaTuningNoPayload": "Could not load server delta JSON. Check network and try again.",
   "kimchiFxDeltaTuningSaved": "Saved.",
   "kimchiFxDeltaTuningSaveFailed": "Save failed."

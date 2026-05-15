@@ -19,32 +19,29 @@ String _fmtFxRange(KimchiFxDeltaBucket b, NumberFormat nf) {
   return lo;
 }
 
-Future<void> openKimchiFxDeltaClientTuningDialog(BuildContext context) async {
+/// 다이얼로그가 [적용]으로 닫히면 `true`.
+Future<bool?> openKimchiFxDeltaClientTuningDialog(BuildContext context) async {
   await KimchiFxDeltaStore.instance.ensureLoaded(ApiService.shared);
-  if (!context.mounted) return;
+  if (!context.mounted) return null;
   final base = KimchiFxDeltaStore.instance.payload;
   final loc = AppLocalizations.of(context)!;
   if (base == null) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(loc.kimchiFxDeltaTuningNoPayload)),
     );
-    return;
+    return null;
   }
 
-  final useOverride =
-      SimulationCondition.instance.kimchiFxDeltaClientOverrideEnabled;
   final saved = SimulationCondition.instance.kimchiFxDeltaClientTuning;
-  final initialTuning =
-      useOverride && saved != null ? saved : base.toClientTuningSnapshot();
+  final initialTuning = saved ?? base.toClientTuningSnapshot();
 
-  if (!context.mounted) return;
-  await showDialog<void>(
+  if (!context.mounted) return null;
+  return showDialog<bool>(
     context: context,
     builder:
         (ctx) => _KimchiFxDeltaTuningDialog(
           basePayload: base,
           initialTuning: initialTuning,
-          initialOverride: useOverride,
         ),
   );
 }
@@ -53,12 +50,10 @@ class _KimchiFxDeltaTuningDialog extends StatefulWidget {
   const _KimchiFxDeltaTuningDialog({
     required this.basePayload,
     required this.initialTuning,
-    required this.initialOverride,
   });
 
   final KimchiFxDeltaPayload basePayload;
   final KimchiFxDeltaClientTuning initialTuning;
-  final bool initialOverride;
 
   @override
   State<_KimchiFxDeltaTuningDialog> createState() =>
@@ -66,7 +61,6 @@ class _KimchiFxDeltaTuningDialog extends StatefulWidget {
 }
 
 class _KimchiFxDeltaTuningDialogState extends State<_KimchiFxDeltaTuningDialog> {
-  late bool _useOverride;
   late String _method;
   late final TextEditingController _fxRef;
   late final TextEditingController _kPp;
@@ -78,8 +72,10 @@ class _KimchiFxDeltaTuningDialogState extends State<_KimchiFxDeltaTuningDialog> 
   @override
   void initState() {
     super.initState();
-    final t = widget.initialTuning;
-    _useOverride = widget.initialOverride;
+    _applyTuningToForm(widget.initialTuning);
+  }
+
+  void _applyTuningToForm(KimchiFxDeltaClientTuning t) {
     _method = t.method;
     if (_method != KimchiFxDeltaClientTuning.methodQuintiles &&
         _method != KimchiFxDeltaClientTuning.methodAffine) {
@@ -153,35 +149,36 @@ class _KimchiFxDeltaTuningDialogState extends State<_KimchiFxDeltaTuningDialog> 
     );
   }
 
+  void _fillFormFromTuning(KimchiFxDeltaClientTuning t) {
+    _method = t.method;
+    _fxRef.text = t.affineFxReference.toString();
+    _kPp.text = t.affineKPpPerFxPercent.toString();
+    _bias.text = t.affineBiasPp.toString();
+    _clampMin.text = t.affineClampMin?.toString() ?? '';
+    _clampMax.text = t.affineClampMax?.toString() ?? '';
+    for (var i = 0; i < _bucketCtrls.length; i++) {
+      final v =
+          i < t.bucketDeltas.length
+              ? t.bucketDeltas[i]
+              : widget.basePayload.buckets[i].deltaAddPp;
+      _bucketCtrls[i].text = v.toString();
+    }
+  }
+
+  void _resetCurrentMethodToServerDefaults() {
+    final snap = widget.basePayload.serverDefaultsForMethod(_method);
+    setState(() => _fillFormFromTuning(snap));
+  }
+
   Future<void> _saveAndClose() async {
     final tuning = _buildTuningFromForm();
     final loc = AppLocalizations.of(context)!;
     final messenger = ScaffoldMessenger.of(context);
     final ok = await SimulationCondition.instance.saveKimchiFxDeltaClientTuning(
-      overrideEnabled: _useOverride,
-      tuning: tuning,
+      tuning,
     );
     if (!mounted) return;
-    Navigator.of(context).pop();
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          ok ? loc.kimchiFxDeltaTuningSaved : loc.kimchiFxDeltaTuningSaveFailed,
-        ),
-      ),
-    );
-  }
-
-  Future<void> _resetToServer() async {
-    final snap = widget.basePayload.toClientTuningSnapshot();
-    final loc = AppLocalizations.of(context)!;
-    final messenger = ScaffoldMessenger.of(context);
-    final ok = await SimulationCondition.instance.saveKimchiFxDeltaClientTuning(
-      overrideEnabled: false,
-      tuning: snap,
-    );
-    if (!mounted) return;
-    Navigator.of(context).pop();
+    Navigator.of(context).pop(true);
     messenger.showSnackBar(
       SnackBar(
         content: Text(
@@ -207,13 +204,6 @@ class _KimchiFxDeltaTuningDialogState extends State<_KimchiFxDeltaTuningDialog> 
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(loc.kimchiFxDeltaTuningUseOverride),
-                value: _useOverride,
-                onChanged: (v) => setState(() => _useOverride = v),
-              ),
-              const SizedBox(height: 8),
               Text(loc.kimchiFxDeltaTuningMethod),
               const SizedBox(height: 4),
               DropdownButton<String>(
@@ -360,7 +350,7 @@ class _KimchiFxDeltaTuningDialogState extends State<_KimchiFxDeltaTuningDialog> 
           child: Text(loc.cancel),
         ),
         TextButton(
-          onPressed: _resetToServer,
+          onPressed: _resetCurrentMethodToServerDefaults,
           child: Text(loc.kimchiFxDeltaTuningReset),
         ),
         FilledButton(

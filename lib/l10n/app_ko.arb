@@ -251,7 +251,6 @@
   "kimchiFxDeltaCorrectionHelpBody": "켜면 서버 `/api/kimchi-fx-delta`의 델타를 받아 김프 임계에 맞춥니다(JSON은 퀀타일 구간표 또는 환율 비율식 affine_fx_ratio). 보정 후 김프(%) ≈ 원시 김프 + 델타이며, 시뮬·차트 김프 매매선·오늘의 코멘트에 동일하게 적용됩니다.",
   "kimchiFxDeltaTuningDetail": "세부 설정",
   "kimchiFxDeltaTuningTitle": "김프 델타 보정 세부 설정",
-  "kimchiFxDeltaTuningUseOverride": "앱에서 서버 값 덮어쓰기",
   "kimchiFxDeltaTuningMethod": "계산 방식",
   "kimchiFxDeltaTuningMethodQuintiles": "구간표 (equal_count_quintiles)",
   "kimchiFxDeltaTuningMethodAffine": "환율 비율식 (affine_fx_ratio)",
@@ -262,7 +261,7 @@
   "kimchiFxDeltaTuningClampMax": "clamp_max (비우면 없음)",
   "kimchiFxDeltaTuningDeltaPp": "Δ(pp)",
   "kimchiFxDeltaTuningApply": "적용",
-  "kimchiFxDeltaTuningReset": "서버 기본만 사용",
+  "kimchiFxDeltaTuningReset": "서버 기본값으로",
   "kimchiFxDeltaTuningNoPayload": "서버 델타 JSON을 불러오지 못했습니다. 네트워크 후 다시 시도하세요.",
   "kimchiFxDeltaTuningSaved": "저장했습니다.",
   "kimchiFxDeltaTuningSaveFailed": "저장에 실패했습니다."

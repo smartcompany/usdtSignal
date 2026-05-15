@@ -611,10 +611,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kimchiFxDeltaTuningTitle => 'Kimchi delta tuning';
 
   @override
-  String get kimchiFxDeltaTuningUseOverride =>
-      'Override server values on this device';
-
-  @override
   String get kimchiFxDeltaTuningMethod => 'Method';
 
   @override
@@ -647,7 +643,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kimchiFxDeltaTuningApply => 'Apply';
 
   @override
-  String get kimchiFxDeltaTuningReset => 'Use server defaults only';
+  String get kimchiFxDeltaTuningReset => 'Reset to server defaults';
 
   @override
   String get kimchiFxDeltaTuningNoPayload =>

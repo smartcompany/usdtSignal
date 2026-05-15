@@ -162,15 +162,31 @@ class KimchiFxDeltaPayload {
 }
 
 extension KimchiFxDeltaPayloadClientSnapshot on KimchiFxDeltaPayload {
-  KimchiFxDeltaClientTuning toClientTuningSnapshot() {
+  KimchiFxDeltaClientTuning toClientTuningSnapshot() =>
+      serverDefaultsForMethod(method);
+
+  /// 서버 JSON 기준, [method]에 해당하는 필드만 서버 기본값으로 채웁니다.
+  KimchiFxDeltaClientTuning serverDefaultsForMethod(String method) {
     final f = formulaModel;
-    return KimchiFxDeltaClientTuning(
-      method: method,
+    final affineDefaults = KimchiFxDeltaClientTuning(
+      method: KimchiFxDeltaClientTuning.methodAffine,
       affineFxReference: f?.fxReference ?? 1450.0,
       affineBiasPp: f?.biasPp ?? 0.0,
       affineKPpPerFxPercent: f?.kPpPerFxPercent ?? 0.0,
       affineClampMin: f?.clampMin,
       affineClampMax: f?.clampMax,
+      bucketDeltas: buckets.map((e) => e.deltaAddPp).toList(),
+    );
+    if (method == KimchiFxDeltaClientTuning.methodAffine) {
+      return affineDefaults;
+    }
+    return KimchiFxDeltaClientTuning(
+      method: KimchiFxDeltaClientTuning.methodQuintiles,
+      affineFxReference: affineDefaults.affineFxReference,
+      affineBiasPp: affineDefaults.affineBiasPp,
+      affineKPpPerFxPercent: affineDefaults.affineKPpPerFxPercent,
+      affineClampMin: affineDefaults.affineClampMin,
+      affineClampMax: affineDefaults.affineClampMax,
       bucketDeltas: buckets.map((e) => e.deltaAddPp).toList(),
     );
   }
@@ -247,9 +263,6 @@ class KimchiFxDeltaStore {
   KimchiFxDeltaPayload? get effectivePayload {
     final base = _payload;
     if (base == null) return null;
-    if (!SimulationCondition.instance.kimchiFxDeltaClientOverrideEnabled) {
-      return base;
-    }
     final t = SimulationCondition.instance.kimchiFxDeltaClientTuning;
     if (t == null) return base;
     return KimchiFxDeltaPayload.mergeClientTuning(base, t);

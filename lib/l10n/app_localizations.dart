@@ -1204,12 +1204,6 @@ abstract class AppLocalizations {
   /// **'김프 델타 보정 세부 설정'**
   String get kimchiFxDeltaTuningTitle;
 
-  /// No description provided for @kimchiFxDeltaTuningUseOverride.
-  ///
-  /// In ko, this message translates to:
-  /// **'앱에서 서버 값 덮어쓰기'**
-  String get kimchiFxDeltaTuningUseOverride;
-
   /// No description provided for @kimchiFxDeltaTuningMethod.
   ///
   /// In ko, this message translates to:
@@ -1273,7 +1267,7 @@ abstract class AppLocalizations {
   /// No description provided for @kimchiFxDeltaTuningReset.
   ///
   /// In ko, this message translates to:
-  /// **'서버 기본만 사용'**
+  /// **'서버 기본값으로'**
   String get kimchiFxDeltaTuningReset;
 
   /// No description provided for @kimchiFxDeltaTuningNoPayload.

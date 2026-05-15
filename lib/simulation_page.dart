@@ -20,9 +20,9 @@ import 'dialogs/liquid_glass_dialog.dart';
 
 String _kimchiFxDeltaMethodSubtitle(AppLocalizations loc) {
   String method;
-  if (SimulationCondition.instance.kimchiFxDeltaClientOverrideEnabled &&
-      SimulationCondition.instance.kimchiFxDeltaClientTuning != null) {
-    method = SimulationCondition.instance.kimchiFxDeltaClientTuning!.method;
+  final saved = SimulationCondition.instance.kimchiFxDeltaClientTuning;
+  if (saved != null) {
+    method = saved.method;
   } else {
     final p = KimchiFxDeltaStore.instance.payload;
     if (p == null) return loc.kimchiFxDeltaMethodSubtitleLoading;
@@ -458,7 +458,13 @@ class SimulationPage extends StatefulWidget {
                       ),
                       TextButton(
                         onPressed: () async {
-                          await openKimchiFxDeltaClientTuningDialog(context);
+                          final applied =
+                              await openKimchiFxDeltaClientTuningDialog(
+                                context,
+                              );
+                          if (applied == true && context.mounted) {
+                            setState(() {});
+                          }
                         },
                         child: Text(
                           l10n(context).kimchiFxDeltaTuningDetail,
