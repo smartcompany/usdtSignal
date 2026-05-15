@@ -1165,14 +1165,134 @@ abstract class AppLocalizations {
   /// No description provided for @kimchiFxDeltaCorrectionLabel.
   ///
   /// In ko, this message translates to:
-  /// **'환율 구간별 김프 델타 보정(서버 JSON)'**
+  /// **'환율별 김프 보정'**
   String get kimchiFxDeltaCorrectionLabel;
+
+  /// No description provided for @kimchiFxDeltaMethodSubtitleQuintiles.
+  ///
+  /// In ko, this message translates to:
+  /// **'구간표'**
+  String get kimchiFxDeltaMethodSubtitleQuintiles;
+
+  /// No description provided for @kimchiFxDeltaMethodSubtitleAffine.
+  ///
+  /// In ko, this message translates to:
+  /// **'환율 비율식'**
+  String get kimchiFxDeltaMethodSubtitleAffine;
+
+  /// No description provided for @kimchiFxDeltaMethodSubtitleLoading.
+  ///
+  /// In ko, this message translates to:
+  /// **'불러오는 중…'**
+  String get kimchiFxDeltaMethodSubtitleLoading;
 
   /// No description provided for @kimchiFxDeltaCorrectionHelpBody.
   ///
   /// In ko, this message translates to:
-  /// **'켜면 서버 `/api/kimchi-fx-delta`(USD/KRW 퀀타일별 델타)를 받아 김프 임계에 맞춥니다. 공식은 보정 후 김프(%) ≈ 원시 김프 + 델타이며, 시뮬·차트 김프 매매선·오늘의 코멘트에 동일하게 적용됩니다.'**
+  /// **'켜면 서버 `/api/kimchi-fx-delta`의 델타를 받아 김프 임계에 맞춥니다(JSON은 퀀타일 구간표 또는 환율 비율식 affine_fx_ratio). 보정 후 김프(%) ≈ 원시 김프 + 델타이며, 시뮬·차트 김프 매매선·오늘의 코멘트에 동일하게 적용됩니다.'**
   String get kimchiFxDeltaCorrectionHelpBody;
+
+  /// No description provided for @kimchiFxDeltaTuningDetail.
+  ///
+  /// In ko, this message translates to:
+  /// **'세부 설정'**
+  String get kimchiFxDeltaTuningDetail;
+
+  /// No description provided for @kimchiFxDeltaTuningTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'김프 델타 보정 세부 설정'**
+  String get kimchiFxDeltaTuningTitle;
+
+  /// No description provided for @kimchiFxDeltaTuningUseOverride.
+  ///
+  /// In ko, this message translates to:
+  /// **'앱에서 서버 값 덮어쓰기'**
+  String get kimchiFxDeltaTuningUseOverride;
+
+  /// No description provided for @kimchiFxDeltaTuningMethod.
+  ///
+  /// In ko, this message translates to:
+  /// **'계산 방식'**
+  String get kimchiFxDeltaTuningMethod;
+
+  /// No description provided for @kimchiFxDeltaTuningMethodQuintiles.
+  ///
+  /// In ko, this message translates to:
+  /// **'구간표 (equal_count_quintiles)'**
+  String get kimchiFxDeltaTuningMethodQuintiles;
+
+  /// No description provided for @kimchiFxDeltaTuningMethodAffine.
+  ///
+  /// In ko, this message translates to:
+  /// **'환율 비율식 (affine_fx_ratio)'**
+  String get kimchiFxDeltaTuningMethodAffine;
+
+  /// No description provided for @kimchiFxDeltaTuningFxReference.
+  ///
+  /// In ko, this message translates to:
+  /// **'기준 환율 (fx_reference)'**
+  String get kimchiFxDeltaTuningFxReference;
+
+  /// No description provided for @kimchiFxDeltaTuningKPerFxPercent.
+  ///
+  /// In ko, this message translates to:
+  /// **'k_pp_per_fx_percent'**
+  String get kimchiFxDeltaTuningKPerFxPercent;
+
+  /// No description provided for @kimchiFxDeltaTuningBiasPp.
+  ///
+  /// In ko, this message translates to:
+  /// **'bias_pp'**
+  String get kimchiFxDeltaTuningBiasPp;
+
+  /// No description provided for @kimchiFxDeltaTuningClampMin.
+  ///
+  /// In ko, this message translates to:
+  /// **'clamp_min (비우면 없음)'**
+  String get kimchiFxDeltaTuningClampMin;
+
+  /// No description provided for @kimchiFxDeltaTuningClampMax.
+  ///
+  /// In ko, this message translates to:
+  /// **'clamp_max (비우면 없음)'**
+  String get kimchiFxDeltaTuningClampMax;
+
+  /// No description provided for @kimchiFxDeltaTuningDeltaPp.
+  ///
+  /// In ko, this message translates to:
+  /// **'Δ(pp)'**
+  String get kimchiFxDeltaTuningDeltaPp;
+
+  /// No description provided for @kimchiFxDeltaTuningApply.
+  ///
+  /// In ko, this message translates to:
+  /// **'적용'**
+  String get kimchiFxDeltaTuningApply;
+
+  /// No description provided for @kimchiFxDeltaTuningReset.
+  ///
+  /// In ko, this message translates to:
+  /// **'서버 기본만 사용'**
+  String get kimchiFxDeltaTuningReset;
+
+  /// No description provided for @kimchiFxDeltaTuningNoPayload.
+  ///
+  /// In ko, this message translates to:
+  /// **'서버 델타 JSON을 불러오지 못했습니다. 네트워크 후 다시 시도하세요.'**
+  String get kimchiFxDeltaTuningNoPayload;
+
+  /// No description provided for @kimchiFxDeltaTuningSaved.
+  ///
+  /// In ko, this message translates to:
+  /// **'저장했습니다.'**
+  String get kimchiFxDeltaTuningSaved;
+
+  /// No description provided for @kimchiFxDeltaTuningSaveFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'저장에 실패했습니다.'**
+  String get kimchiFxDeltaTuningSaveFailed;
 }
 
 class _AppLocalizationsDelegate

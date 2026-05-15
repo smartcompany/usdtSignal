@@ -572,9 +572,70 @@ class AppLocalizationsZh extends AppLocalizations {
       '当溢价大于或等于该百分比时，会考虑卖出。数值越高需要溢价更大才卖，越低则对较小溢价也可能卖出。';
 
   @override
-  String get kimchiFxDeltaCorrectionLabel => '按汇率区间的泡菜溢价Δ（服务端 JSON）';
+  String get kimchiFxDeltaCorrectionLabel => '按汇率的泡菜溢价调整';
+
+  @override
+  String get kimchiFxDeltaMethodSubtitleQuintiles => '区间表';
+
+  @override
+  String get kimchiFxDeltaMethodSubtitleAffine => '汇率比例式';
+
+  @override
+  String get kimchiFxDeltaMethodSubtitleLoading => '加载中…';
 
   @override
   String get kimchiFxDeltaCorrectionHelpBody =>
-      '开启后从服务端 `/api/kimchi-fx-delta` 读取按 USD/KRW 分段的 Δ（百分点），与阈值比较前先加到原始泡菜溢价上（近似：调整后 ≈ 原始 + Δ）。对泡菜模拟、图表买卖线与当日点评一致生效。';
+      '开启后从服务端 `/api/kimchi-fx-delta` 读取 Δ（JSON 可为 USD/KRW 分段或 affine_fx_ratio 汇率比例式），与阈值比较前先加到原始泡菜溢价上（近似：调整后 ≈ 原始 + Δ）。对泡菜模拟、图表买卖线与当日点评一致生效。';
+
+  @override
+  String get kimchiFxDeltaTuningDetail => '详细设置';
+
+  @override
+  String get kimchiFxDeltaTuningTitle => '泡菜溢价 Δ 详细设置';
+
+  @override
+  String get kimchiFxDeltaTuningUseOverride => '在本机覆盖服务端数值';
+
+  @override
+  String get kimchiFxDeltaTuningMethod => '计算方式';
+
+  @override
+  String get kimchiFxDeltaTuningMethodQuintiles =>
+      '分段表 (equal_count_quintiles)';
+
+  @override
+  String get kimchiFxDeltaTuningMethodAffine => '汇率比例 (affine_fx_ratio)';
+
+  @override
+  String get kimchiFxDeltaTuningFxReference => '基准汇率 (fx_reference)';
+
+  @override
+  String get kimchiFxDeltaTuningKPerFxPercent => 'k_pp_per_fx_percent';
+
+  @override
+  String get kimchiFxDeltaTuningBiasPp => 'bias_pp';
+
+  @override
+  String get kimchiFxDeltaTuningClampMin => 'clamp_min（留空=不限制）';
+
+  @override
+  String get kimchiFxDeltaTuningClampMax => 'clamp_max（留空=不限制）';
+
+  @override
+  String get kimchiFxDeltaTuningDeltaPp => 'Δ (百分点)';
+
+  @override
+  String get kimchiFxDeltaTuningApply => '应用';
+
+  @override
+  String get kimchiFxDeltaTuningReset => '仅使用服务端默认';
+
+  @override
+  String get kimchiFxDeltaTuningNoPayload => '无法加载服务端 Δ JSON，请检查网络后重试。';
+
+  @override
+  String get kimchiFxDeltaTuningSaved => '已保存。';
+
+  @override
+  String get kimchiFxDeltaTuningSaveFailed => '保存失败。';
 }

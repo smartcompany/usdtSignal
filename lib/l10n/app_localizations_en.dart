@@ -589,10 +589,73 @@ class AppLocalizationsEn extends AppLocalizations {
       'Premium at or above this percent is treated as a sell signal. Higher values wait for a larger premium before selling; lower values may sell on smaller premiums.';
 
   @override
-  String get kimchiFxDeltaCorrectionLabel =>
-      'FX-bucket kimchi delta (server JSON)';
+  String get kimchiFxDeltaCorrectionLabel => 'Kimchi adjustment by FX';
+
+  @override
+  String get kimchiFxDeltaMethodSubtitleQuintiles => 'Range table';
+
+  @override
+  String get kimchiFxDeltaMethodSubtitleAffine => 'FX ratio formula';
+
+  @override
+  String get kimchiFxDeltaMethodSubtitleLoading => 'Loading…';
 
   @override
   String get kimchiFxDeltaCorrectionHelpBody =>
-      'Uses `/api/kimchi-fx-delta` quintile deltas added to raw premium before comparing to your buy/sell % thresholds (prem_adj ≈ raw + Δ). Applies to kimchi simulation, chart trade lines, and today’s kimchi commentary.';
+      'Uses `/api/kimchi-fx-delta` deltas (either USD/KRW quintile buckets or the `affine_fx_ratio` formula from JSON) added to raw premium before comparing to your buy/sell % thresholds (prem_adj ≈ raw + Δ). Applies to kimchi simulation, chart trade lines, and today’s kimchi commentary.';
+
+  @override
+  String get kimchiFxDeltaTuningDetail => 'Details';
+
+  @override
+  String get kimchiFxDeltaTuningTitle => 'Kimchi delta tuning';
+
+  @override
+  String get kimchiFxDeltaTuningUseOverride =>
+      'Override server values on this device';
+
+  @override
+  String get kimchiFxDeltaTuningMethod => 'Method';
+
+  @override
+  String get kimchiFxDeltaTuningMethodQuintiles =>
+      'Buckets (equal_count_quintiles)';
+
+  @override
+  String get kimchiFxDeltaTuningMethodAffine => 'FX ratio (affine_fx_ratio)';
+
+  @override
+  String get kimchiFxDeltaTuningFxReference =>
+      'fx_reference (baseline USD/KRW)';
+
+  @override
+  String get kimchiFxDeltaTuningKPerFxPercent => 'k_pp_per_fx_percent';
+
+  @override
+  String get kimchiFxDeltaTuningBiasPp => 'bias_pp';
+
+  @override
+  String get kimchiFxDeltaTuningClampMin => 'clamp_min (empty = none)';
+
+  @override
+  String get kimchiFxDeltaTuningClampMax => 'clamp_max (empty = none)';
+
+  @override
+  String get kimchiFxDeltaTuningDeltaPp => 'Δ (pp)';
+
+  @override
+  String get kimchiFxDeltaTuningApply => 'Apply';
+
+  @override
+  String get kimchiFxDeltaTuningReset => 'Use server defaults only';
+
+  @override
+  String get kimchiFxDeltaTuningNoPayload =>
+      'Could not load server delta JSON. Check network and try again.';
+
+  @override
+  String get kimchiFxDeltaTuningSaved => 'Saved.';
+
+  @override
+  String get kimchiFxDeltaTuningSaveFailed => 'Save failed.';
 }

@@ -436,11 +436,28 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
             );
 
             markerExchangeRate = exchangeRateValue;
-            final buyPrice = exchangeRateValue * (1 + buyThreshold / 100);
-            final sellPrice = exchangeRateValue * (1 + sellThreshold / 100);
+            final prices = SimulationModel.getKimchiTradingPrices(
+              exchangeRateValue: exchangeRateValue,
+              premiumTrends: widget.premiumTrends,
+              targetDate: widget.usdtChartData.last.time,
+              exchangeRates: widget.exchangeRates,
+            );
+            final dAdj = KimchiFxDeltaStore.instance.deltaForFxWhenEnabled(
+              exchangeRateValue,
+            );
 
-            buyPoint = (price: buyPrice, kimchiPremium: buyThreshold);
-            sellPoint = (price: sellPrice, kimchiPremium: sellThreshold);
+            if (prices.buyPrice > 0) {
+              buyPoint = (
+                price: prices.buyPrice,
+                kimchiPremium: buyThreshold - dAdj,
+              );
+            }
+            if (prices.sellPrice > 0) {
+              sellPoint = (
+                price: prices.sellPrice,
+                kimchiPremium: sellThreshold - dAdj,
+              );
+            }
           }
         }
       }

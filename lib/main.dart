@@ -849,6 +849,8 @@ class _MyHomePageState extends State<MyHomePage>
         ApiService.shared.fetchKimchiPremiumData(),
       ]);
 
+      await KimchiFxDeltaStore.instance.ensureLoaded(ApiService.shared);
+
       print("api들 로딩 완료");
 
       exchangeRates = results[0] as List<ChartData>;

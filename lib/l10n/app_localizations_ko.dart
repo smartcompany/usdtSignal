@@ -577,9 +577,71 @@ class AppLocalizationsKo extends AppLocalizations {
       '김치 프리미엄이 입력한 % 이상일 때 매도 신호를 검토합니다. 값을 높이면 프리미엄이 더 커졌을 때만 매도하려 하고, 낮추면 비교적 작은 프리미엄에서도 매도 후보가 됩니다.';
 
   @override
-  String get kimchiFxDeltaCorrectionLabel => '환율 구간별 김프 델타 보정(서버 JSON)';
+  String get kimchiFxDeltaCorrectionLabel => '환율별 김프 보정';
+
+  @override
+  String get kimchiFxDeltaMethodSubtitleQuintiles => '구간표';
+
+  @override
+  String get kimchiFxDeltaMethodSubtitleAffine => '환율 비율식';
+
+  @override
+  String get kimchiFxDeltaMethodSubtitleLoading => '불러오는 중…';
 
   @override
   String get kimchiFxDeltaCorrectionHelpBody =>
-      '켜면 서버 `/api/kimchi-fx-delta`(USD/KRW 퀀타일별 델타)를 받아 김프 임계에 맞춥니다. 공식은 보정 후 김프(%) ≈ 원시 김프 + 델타이며, 시뮬·차트 김프 매매선·오늘의 코멘트에 동일하게 적용됩니다.';
+      '켜면 서버 `/api/kimchi-fx-delta`의 델타를 받아 김프 임계에 맞춥니다(JSON은 퀀타일 구간표 또는 환율 비율식 affine_fx_ratio). 보정 후 김프(%) ≈ 원시 김프 + 델타이며, 시뮬·차트 김프 매매선·오늘의 코멘트에 동일하게 적용됩니다.';
+
+  @override
+  String get kimchiFxDeltaTuningDetail => '세부 설정';
+
+  @override
+  String get kimchiFxDeltaTuningTitle => '김프 델타 보정 세부 설정';
+
+  @override
+  String get kimchiFxDeltaTuningUseOverride => '앱에서 서버 값 덮어쓰기';
+
+  @override
+  String get kimchiFxDeltaTuningMethod => '계산 방식';
+
+  @override
+  String get kimchiFxDeltaTuningMethodQuintiles =>
+      '구간표 (equal_count_quintiles)';
+
+  @override
+  String get kimchiFxDeltaTuningMethodAffine => '환율 비율식 (affine_fx_ratio)';
+
+  @override
+  String get kimchiFxDeltaTuningFxReference => '기준 환율 (fx_reference)';
+
+  @override
+  String get kimchiFxDeltaTuningKPerFxPercent => 'k_pp_per_fx_percent';
+
+  @override
+  String get kimchiFxDeltaTuningBiasPp => 'bias_pp';
+
+  @override
+  String get kimchiFxDeltaTuningClampMin => 'clamp_min (비우면 없음)';
+
+  @override
+  String get kimchiFxDeltaTuningClampMax => 'clamp_max (비우면 없음)';
+
+  @override
+  String get kimchiFxDeltaTuningDeltaPp => 'Δ(pp)';
+
+  @override
+  String get kimchiFxDeltaTuningApply => '적용';
+
+  @override
+  String get kimchiFxDeltaTuningReset => '서버 기본만 사용';
+
+  @override
+  String get kimchiFxDeltaTuningNoPayload =>
+      '서버 델타 JSON을 불러오지 못했습니다. 네트워크 후 다시 시도하세요.';
+
+  @override
+  String get kimchiFxDeltaTuningSaved => '저장했습니다.';
+
+  @override
+  String get kimchiFxDeltaTuningSaveFailed => '저장에 실패했습니다.';
 }

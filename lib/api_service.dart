@@ -811,6 +811,8 @@ enum UserDataKey {
   simulationInitialKrw,
   simulationCompoundInterest,
   kimchiFxDeltaCorrection,
+  kimchiFxDeltaClientOverride,
+  kimchiFxDeltaClientTuningJson,
 }
 
 extension UserDataKeyExt on UserDataKey {
@@ -832,6 +834,10 @@ extension UserDataKeyExt on UserDataKey {
         return 'simulationCompoundInterest';
       case UserDataKey.kimchiFxDeltaCorrection:
         return 'kimchiFxDeltaCorrection';
+      case UserDataKey.kimchiFxDeltaClientOverride:
+        return 'kimchiFxDeltaClientOverride';
+      case UserDataKey.kimchiFxDeltaClientTuningJson:
+        return 'kimchiFxDeltaClientTuningJson';
     }
   }
 }

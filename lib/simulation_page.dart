@@ -9,12 +9,30 @@ import 'package:usdt_signal/ChartOnlyPage.dart'; // ChartOnlyPageModel import �
 import 'package:share_plus/share_plus.dart';
 import 'package:usdt_signal/api_service.dart';
 import 'package:usdt_signal/kimchi_fx_delta.dart';
+import 'package:usdt_signal/kimchi_fx_delta_client_tuning.dart';
+import 'package:usdt_signal/kimchi_fx_delta_tuning_dialog.dart';
 import 'package:usdt_signal/kimchi_strategy_explain.dart';
 import 'package:usdt_signal/l10n/app_localizations.dart';
 import 'package:usdt_signal/simulation_model.dart';
 import 'package:usdt_signal/strategy_history_page.dart';
 import 'utils.dart';
 import 'dialogs/liquid_glass_dialog.dart';
+
+String _kimchiFxDeltaMethodSubtitle(AppLocalizations loc) {
+  String method;
+  if (SimulationCondition.instance.kimchiFxDeltaClientOverrideEnabled &&
+      SimulationCondition.instance.kimchiFxDeltaClientTuning != null) {
+    method = SimulationCondition.instance.kimchiFxDeltaClientTuning!.method;
+  } else {
+    final p = KimchiFxDeltaStore.instance.payload;
+    if (p == null) return loc.kimchiFxDeltaMethodSubtitleLoading;
+    method = p.method;
+  }
+  if (method == KimchiFxDeltaClientTuning.methodAffine) {
+    return loc.kimchiFxDeltaMethodSubtitleAffine;
+  }
+  return loc.kimchiFxDeltaMethodSubtitleQuintiles;
+}
 
 /// 정수 원화 입력용: 숫자만 받아 천단위 구분자로 표시하고 커서 위치를 맞춥니다.
 class _ThousandsSeparatorDigitsFormatter extends TextInputFormatter {
@@ -422,7 +440,30 @@ class SimulationPage extends StatefulWidget {
                         ),
                       ),
                       Expanded(
-                        child: Text(l10n(context).kimchiFxDeltaCorrectionLabel),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(l10n(context).kimchiFxDeltaCorrectionLabel),
+                            Text(
+                              _kimchiFxDeltaMethodSubtitle(l10n(context)),
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          await openKimchiFxDeltaClientTuningDialog(context);
+                        },
+                        child: Text(
+                          l10n(context).kimchiFxDeltaTuningDetail,
+                          style: const TextStyle(fontSize: 13),
+                        ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.help_outline),
