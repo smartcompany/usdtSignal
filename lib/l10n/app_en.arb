@@ -2,6 +2,20 @@
   "usdt": "USDT",
   "exchangeRate": "FX",
   "gimchiPremiem": "K-Premium",
+  "chartTooltipBuyRecommend": "Buy target: {price} ({premium}%)",
+  "@chartTooltipBuyRecommend": {
+    "placeholders": {
+      "price": { "type": "String" },
+      "premium": { "type": "String" }
+    }
+  },
+  "chartTooltipSellRecommend": "Sell target: {price} ({premium}%)",
+  "@chartTooltipSellRecommend": {
+    "placeholders": {
+      "price": { "type": "String" },
+      "premium": { "type": "String" }
+    }
+  },
   "xrpFundingRateTitle": "XRP Funding (Y)",
   "fundingRateInterval": "({hours}h)",
   "@fundingRateInterval": {
@@ -78,6 +92,8 @@
   "kimchiPremiumPercent": "K-Premium (%)",
   "resetChart": "Reset Chart",
   "backToPreviousChart": "Previous Chart",
+  "zoomIn": "Zoom In",
+  "zoomOut": "Zoom Out",
   "kimchiPremium": "K-Premium",
   "aiBuySell": "AI Buy/Sell",
   "kimchiPremiumBuySell": "K-Premium Buy/Sell",
@@ -257,12 +273,28 @@
   "kimchiFxDeltaTuningFxReference": "fx_reference (baseline USD/KRW)",
   "kimchiFxDeltaTuningKPerFxPercent": "k_pp_per_fx_percent",
   "kimchiFxDeltaTuningBiasPp": "bias_pp",
+  "kimchiFxDeltaTuningHighFxOnset": "High-FX boost onset (₩)",
+  "kimchiFxDeltaTuningHighFxOnsetHint": "Empty = linear only",
+  "kimchiFxDeltaTuningKHiFx2": "k_hi (high-FX quadratic, pp/%²)",
+  "kimchiFxDeltaTuningKHiFx2Hint": "0 = no quadratic boost",
   "kimchiFxDeltaTuningClampMin": "clamp_min (empty = none)",
   "kimchiFxDeltaTuningClampMax": "clamp_max (empty = none)",
   "kimchiFxDeltaTuningDeltaPp": "Δ (pp)",
   "kimchiFxDeltaTuningApply": "Apply",
   "kimchiFxDeltaTuningReset": "Reset to server defaults",
   "kimchiFxDeltaTuningNoPayload": "Could not load server delta JSON. Check network and try again.",
+  "kimchiFxDeltaPayloadInvalid": "Server delta JSON is invalid or incomplete.",
+  "kimchiFxDeltaLoadFailed": "Could not load server delta settings.",
+  "kimchiFxDeltaTuningInvalidFields": "Check your input values.",
   "kimchiFxDeltaTuningSaved": "Saved.",
-  "kimchiFxDeltaTuningSaveFailed": "Save failed."
+  "kimchiFxDeltaTuningSaveFailed": "Save failed.",
+  "kimchiFxDeltaPreviewTitle": "Correction curve preview (USD/KRW 1,300–1,600)",
+  "kimchiFxDeltaPreviewFx": "FX · {fx} KRW",
+  "@kimchiFxDeltaPreviewFx": {
+    "placeholders": { "fx": { "type": "String" } }
+  },
+  "kimchiFxDeltaPreviewDelta": "K-premium Δ · {delta} pp",
+  "@kimchiFxDeltaPreviewDelta": {
+    "placeholders": { "delta": { "type": "String" } }
+  }
 }

@@ -18,6 +18,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get gimchiPremiem => '韩元溢价';
 
   @override
+  String chartTooltipBuyRecommend(String price, String premium) {
+    return '买入参考: $price($premium%)';
+  }
+
+  @override
+  String chartTooltipSellRecommend(String price, String premium) {
+    return '卖出参考: $price($premium%)';
+  }
+
+  @override
   String get xrpFundingRateTitle => 'XRP 资金费率(Y)';
 
   @override
@@ -223,6 +233,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get backToPreviousChart => '上一张图表';
+
+  @override
+  String get zoomIn => '放大';
+
+  @override
+  String get zoomOut => '缩小';
 
   @override
   String get kimchiPremium => '泡菜溢价';
@@ -613,6 +629,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get kimchiFxDeltaTuningBiasPp => 'bias_pp';
 
   @override
+  String get kimchiFxDeltaTuningHighFxOnset => '高汇率二次加速起点(₩)';
+
+  @override
+  String get kimchiFxDeltaTuningHighFxOnsetHint => '留空则仅线性';
+
+  @override
+  String get kimchiFxDeltaTuningKHiFx2 => 'k_hi（高汇率二次，pp/%²）';
+
+  @override
+  String get kimchiFxDeltaTuningKHiFx2Hint => '0 表示无二次加速';
+
+  @override
   String get kimchiFxDeltaTuningClampMin => 'clamp_min（留空=不限制）';
 
   @override
@@ -631,8 +659,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String get kimchiFxDeltaTuningNoPayload => '无法加载服务端 Δ JSON，请检查网络后重试。';
 
   @override
+  String get kimchiFxDeltaPayloadInvalid => '服务端 Δ JSON 格式无效或不完整。';
+
+  @override
+  String get kimchiFxDeltaLoadFailed => '无法加载服务端 Δ 设置。';
+
+  @override
+  String get kimchiFxDeltaTuningInvalidFields => '请检查输入值。';
+
+  @override
   String get kimchiFxDeltaTuningSaved => '已保存。';
 
   @override
   String get kimchiFxDeltaTuningSaveFailed => '保存失败。';
+
+  @override
+  String get kimchiFxDeltaPreviewTitle => '校正曲线预览（USD/KRW 1,300~1,600）';
+
+  @override
+  String kimchiFxDeltaPreviewFx(String fx) {
+    return '汇率 · $fx韩元';
+  }
+
+  @override
+  String kimchiFxDeltaPreviewDelta(String delta) {
+    return '泡菜溢价 Δ · $delta pp';
+  }
 }

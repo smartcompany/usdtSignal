@@ -77,7 +77,7 @@ extension DateTimeCustomString on DateTime {
 
 enum AdsStatus { unload, load, shown }
 
-enum TodayCommentAlarmType { off, ai, kimchi }
+enum TodayCommentAlarmType { off, kimchi }
 
 class SimulationCondition {
   SimulationCondition._internal();
@@ -347,12 +347,32 @@ extension TodayCommentAlarmTypePrefs on TodayCommentAlarmType {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString(_prefsKey);
     if (saved != null) {
+      if (saved == 'ai') {
+        await prefs.setString(_prefsKey, TodayCommentAlarmType.kimchi.name);
+        return TodayCommentAlarmType.kimchi;
+      }
       return TodayCommentAlarmType.values.firstWhere(
         (e) => e.name == saved,
         orElse: () => TodayCommentAlarmType.off,
       );
     }
     return TodayCommentAlarmType.off;
+  }
+
+  /// 예전 AI 분석 알림 설정을 김프 알림으로 한 번 마이그레이션합니다.
+  static Future<void> migrateLegacyAiAlarmSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('userData');
+    if (raw == null) return;
+    try {
+      final data = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+      if (data['pushType'] != 'ai') return;
+      data['pushType'] = 'kimchi';
+      await prefs.setString('userData', jsonEncode(data));
+      await ApiService.shared.saveAndSyncUserData({
+        UserDataKey.pushType: TodayCommentAlarmType.kimchi.name,
+      });
+    } catch (_) {}
   }
 
   /// SharedPreferences에 값 저장

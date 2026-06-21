@@ -18,6 +18,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gimchiPremiem => 'K-Premium';
 
   @override
+  String chartTooltipBuyRecommend(String price, String premium) {
+    return 'Buy target: $price ($premium%)';
+  }
+
+  @override
+  String chartTooltipSellRecommend(String price, String premium) {
+    return 'Sell target: $price ($premium%)';
+  }
+
+  @override
   String get xrpFundingRateTitle => 'XRP Funding (Y)';
 
   @override
@@ -224,6 +234,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backToPreviousChart => 'Previous Chart';
+
+  @override
+  String get zoomIn => 'Zoom In';
+
+  @override
+  String get zoomOut => 'Zoom Out';
 
   @override
   String get kimchiPremium => 'K-Premium';
@@ -631,6 +647,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kimchiFxDeltaTuningBiasPp => 'bias_pp';
 
   @override
+  String get kimchiFxDeltaTuningHighFxOnset => 'High-FX boost onset (₩)';
+
+  @override
+  String get kimchiFxDeltaTuningHighFxOnsetHint => 'Empty = linear only';
+
+  @override
+  String get kimchiFxDeltaTuningKHiFx2 => 'k_hi (high-FX quadratic, pp/%²)';
+
+  @override
+  String get kimchiFxDeltaTuningKHiFx2Hint => '0 = no quadratic boost';
+
+  @override
   String get kimchiFxDeltaTuningClampMin => 'clamp_min (empty = none)';
 
   @override
@@ -650,8 +678,32 @@ class AppLocalizationsEn extends AppLocalizations {
       'Could not load server delta JSON. Check network and try again.';
 
   @override
+  String get kimchiFxDeltaPayloadInvalid =>
+      'Server delta JSON is invalid or incomplete.';
+
+  @override
+  String get kimchiFxDeltaLoadFailed => 'Could not load server delta settings.';
+
+  @override
+  String get kimchiFxDeltaTuningInvalidFields => 'Check your input values.';
+
+  @override
   String get kimchiFxDeltaTuningSaved => 'Saved.';
 
   @override
   String get kimchiFxDeltaTuningSaveFailed => 'Save failed.';
+
+  @override
+  String get kimchiFxDeltaPreviewTitle =>
+      'Correction curve preview (USD/KRW 1,300–1,600)';
+
+  @override
+  String kimchiFxDeltaPreviewFx(String fx) {
+    return 'FX · $fx KRW';
+  }
+
+  @override
+  String kimchiFxDeltaPreviewDelta(String delta) {
+    return 'K-premium Δ · $delta pp';
+  }
 }

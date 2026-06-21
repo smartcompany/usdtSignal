@@ -18,6 +18,16 @@ class AppLocalizationsKo extends AppLocalizations {
   String get gimchiPremiem => '김치 프리미엄';
 
   @override
+  String chartTooltipBuyRecommend(String price, String premium) {
+    return '매수추천: $price($premium%)';
+  }
+
+  @override
+  String chartTooltipSellRecommend(String price, String premium) {
+    return '매도추천: $price($premium%)';
+  }
+
+  @override
   String get xrpFundingRateTitle => 'XRP 펀딩피(Y)';
 
   @override
@@ -224,6 +234,12 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get backToPreviousChart => '차트 이전';
+
+  @override
+  String get zoomIn => '확대';
+
+  @override
+  String get zoomOut => '축소';
 
   @override
   String get kimchiPremium => '김치 프리미엄';
@@ -618,6 +634,18 @@ class AppLocalizationsKo extends AppLocalizations {
   String get kimchiFxDeltaTuningBiasPp => 'bias_pp';
 
   @override
+  String get kimchiFxDeltaTuningHighFxOnset => '고환율 2차 시작 (₩)';
+
+  @override
+  String get kimchiFxDeltaTuningHighFxOnsetHint => '비우면 선형만';
+
+  @override
+  String get kimchiFxDeltaTuningKHiFx2 => 'k_hi (고환율 2차, pp/%²)';
+
+  @override
+  String get kimchiFxDeltaTuningKHiFx2Hint => '0이면 2차 가속 없음';
+
+  @override
   String get kimchiFxDeltaTuningClampMin => 'clamp_min (비우면 없음)';
 
   @override
@@ -637,8 +665,30 @@ class AppLocalizationsKo extends AppLocalizations {
       '서버 델타 JSON을 불러오지 못했습니다. 네트워크 후 다시 시도하세요.';
 
   @override
+  String get kimchiFxDeltaPayloadInvalid => '서버 델타 JSON 형식이 올바르지 않습니다.';
+
+  @override
+  String get kimchiFxDeltaLoadFailed => '서버 델타를 불러오지 못했습니다.';
+
+  @override
+  String get kimchiFxDeltaTuningInvalidFields => '입력값을 확인해 주세요.';
+
+  @override
   String get kimchiFxDeltaTuningSaved => '저장했습니다.';
 
   @override
   String get kimchiFxDeltaTuningSaveFailed => '저장에 실패했습니다.';
+
+  @override
+  String get kimchiFxDeltaPreviewTitle => '보정 곡선 미리보기 (USD/KRW 1,300~1,600)';
+
+  @override
+  String kimchiFxDeltaPreviewFx(String fx) {
+    return '환율 · $fx원';
+  }
+
+  @override
+  String kimchiFxDeltaPreviewDelta(String delta) {
+    return '김프 Δ · $delta pp';
+  }
 }

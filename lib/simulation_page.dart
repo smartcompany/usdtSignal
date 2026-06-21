@@ -19,12 +19,16 @@ import 'utils.dart';
 import 'dialogs/liquid_glass_dialog.dart';
 
 String _kimchiFxDeltaMethodSubtitle(AppLocalizations loc) {
+  final store = KimchiFxDeltaStore.instance;
+  if (store.loadError != null) {
+    return loc.kimchiFxDeltaLoadFailed;
+  }
   String method;
   final saved = SimulationCondition.instance.kimchiFxDeltaClientTuning;
   if (saved != null) {
     method = saved.method;
   } else {
-    final p = KimchiFxDeltaStore.instance.payload;
+    final p = store.payload;
     if (p == null) return loc.kimchiFxDeltaMethodSubtitleLoading;
     method = p.method;
   }
@@ -226,7 +230,7 @@ class _DialogStyles {
   );
 }
 
-enum SimulationType { ai, kimchi }
+enum SimulationType { kimchi }
 
 class SimulationPage extends StatefulWidget {
   final SimulationType simulationType;
@@ -241,11 +245,8 @@ class SimulationPage extends StatefulWidget {
   // Settings 데이터
   final Map<String, dynamic>? settings;
 
-  /// 시간봉(메인 시간 기준) 등 AI 전략 히스토리가 의미 없을 때 하단 «View History» 숨김.
+  /// 시간봉(메인 시간 기준) 등 전략 히스토리가 의미 없을 때 하단 «View History» 숨김.
   final bool showViewHistoryButton;
-
-  /// 시간 기준일 때 상세 차트에서 «AI 매수/매도» 체크박스 숨김.
-  final bool showAiChartOverlayOption;
 
   /// 시간 봉 모드: 시뮬·전략 팝업 등 날짜 라벨에 년 대신 시각 포함.
   final bool hourlyGranularity;
@@ -260,7 +261,6 @@ class SimulationPage extends StatefulWidget {
     this.chartOnlyPageModel,
     this.settings,
     this.showViewHistoryButton = true,
-    this.showAiChartOverlayOption = true,
     this.hourlyGranularity = false,
   });
 
@@ -446,11 +446,13 @@ class SimulationPage extends StatefulWidget {
                             Text(l10n(context).kimchiFxDeltaCorrectionLabel),
                             Text(
                               _kimchiFxDeltaMethodSubtitle(l10n(context)),
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
+                              style: Theme.of(
+                                context,
+                              ).textTheme.bodySmall?.copyWith(
+                                color:
+                                    Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -741,6 +743,7 @@ class _SimulationPageState extends State<SimulationPage>
   final NumberFormat krwFormat = NumberFormat("#,##0.#", "ko_KR");
   double totalProfitRate = 0; // 총 수익률 변수 추가
   double _initialCapitalKrw = 1000000;
+
   /// 일별 장부 평가금 기준 최대 낙폭(%). `simulateResults` / `gimchiSimulateResults`와 동일 정의.
   double _maxDrawdownPercent = 0;
 
@@ -795,49 +798,36 @@ class _SimulationPageState extends State<SimulationPage>
 
       final initial = await SimulationCondition.instance.getInitialCapitalKrw();
 
-      if (widget.simulationType == SimulationType.ai) {
-        final dailyEquity = <double>[];
-        final simResults = SimulationModel.simulateResults(
-          usdExchangeRates,
-          strategyList,
-          usdtMap,
-          initialKRW: initial,
-          buyFee: buyFee,
-          sellFee: sellFee,
-          dailyEquityOut: dailyEquity,
-        );
-        final mdd = SimulationModel.maxDrawdownPercent(dailyEquity);
-
+      await KimchiFxDeltaStore.instance.ensureLoaded(ApiService.shared);
+      if (SimulationCondition.instance.kimchiFxDeltaCorrectionEnabled &&
+          KimchiFxDeltaStore.instance.effectivePayload == null) {
+        if (!mounted) return;
         setState(() {
-          _initialCapitalKrw = initial;
-          strategies = List<StrategyMap>.from(strategyList);
-          results = simResults;
-          _maxDrawdownPercent = mdd;
           loading = false;
+          error = AppLocalizations.of(context)!.kimchiFxDeltaLoadFailed;
         });
-      } else if (widget.simulationType == SimulationType.kimchi) {
-        await KimchiFxDeltaStore.instance.ensureLoaded(ApiService.shared);
-        final dailyEquity = <double>[];
-        final simResults = SimulationModel.gimchiSimulateResults(
-          usdExchangeRates,
-          strategyList,
-          usdtMap,
-          widget.premiumTrends,
-          initialKRW: initial,
-          buyFee: buyFee,
-          sellFee: sellFee,
-          dailyEquityOut: dailyEquity,
-        );
-        final mdd = SimulationModel.maxDrawdownPercent(dailyEquity);
-
-        setState(() {
-          _initialCapitalKrw = initial;
-          strategies = List<StrategyMap>.from(strategyList);
-          results = simResults;
-          _maxDrawdownPercent = mdd;
-          loading = false;
-        });
+        return;
       }
+      final dailyEquity = <double>[];
+      final simResults = SimulationModel.gimchiSimulateResults(
+        usdExchangeRates,
+        strategyList,
+        usdtMap,
+        widget.premiumTrends,
+        initialKRW: initial,
+        buyFee: buyFee,
+        sellFee: sellFee,
+        dailyEquityOut: dailyEquity,
+      );
+      final mdd = SimulationModel.maxDrawdownPercent(dailyEquity);
+
+      setState(() {
+        _initialCapitalKrw = initial;
+        strategies = List<StrategyMap>.from(strategyList);
+        results = simResults;
+        _maxDrawdownPercent = mdd;
+        loading = false;
+      });
     } catch (e) {
       print('Error during simulation: $e');
       setState(() {
@@ -954,35 +944,16 @@ class _SimulationPageState extends State<SimulationPage>
     }
     if (!context.mounted) return;
 
-    var strategy = strategies?.firstWhere(
-      (s) => DateTime.parse(s['analysis_date']).isSameDate(date),
-      orElse: () => {},
-    );
-
-    // AI 전략에서 해당 날짜에 전략이 없으면 이전 전략을 찾아서 사용
-    DateTime displayDate = date; // 표시할 날짜 (기본값은 요청한 날짜)
-    if (widget.simulationType == SimulationType.ai &&
-        (strategy == null || strategy.isEmpty)) {
-      strategy = _findPreviousAIStrategy(date);
-      // 이전 전략을 찾았으면 그 전략의 날짜를 표시 날짜로 사용
-      if (strategy != null && strategy.isNotEmpty) {
-        displayDate = DateTime.parse(strategy['analysis_date']);
-      }
-    }
-
     var (buyThreshold, sellThreshold) = (
       SimulationCondition.instance.kimchiBuyThreshold,
       SimulationCondition.instance.kimchiSellThreshold,
     );
 
-    if (widget.simulationType == SimulationType.kimchi) {
-      // 서버에서 받은 김치 프리미엄 트렌드 데이터 사용
-      (buyThreshold, sellThreshold) = SimulationModel.getKimchiThresholds(
-        trendData: widget.premiumTrends?[date],
-        exchangeRates: widget.usdExchangeRates,
-        targetDate: date,
-      );
-    }
+    (buyThreshold, sellThreshold) = SimulationModel.getKimchiThresholds(
+      trendData: widget.premiumTrends?[date],
+      exchangeRates: widget.usdExchangeRates,
+      targetDate: date,
+    );
 
     final fxForExplain =
         (usdKrwHint != null && usdKrwHint > 0)
@@ -1033,7 +1004,7 @@ class _SimulationPageState extends State<SimulationPage>
                       Row(
                         children: [
                           Text(
-                            '${displayDate.toSimulationUiString(widget.hourlyGranularity)} ${l10n(context).strategy}',
+                            '${date.toSimulationUiString(widget.hourlyGranularity)} ${l10n(context).strategy}',
                             style: _TitleStyles.dialogTitle(
                               context,
                             ).copyWith(fontSize: 18),
@@ -1052,47 +1023,27 @@ class _SimulationPageState extends State<SimulationPage>
                         ],
                       ),
                       const SizedBox(height: 8),
-                      if (widget.simulationType == SimulationType.ai &&
-                          strategy != null &&
-                          strategy.isNotEmpty) ...[
-                        _StrategyDialogRow(
-                          label: l10n(context).buyPrice,
-                          value: '${strategy['buy_price']}',
+                      SingleChildScrollView(
+                        child: buildKimchiStrategyExplanationContent(
+                          context: context,
+                          l10n: l10n(context),
+                          buyBase: buyThreshold,
+                          sellBase: sellThreshold,
+                          fx: fxForExplain,
                         ),
-                        _StrategyDialogRow(
-                          label: l10n(context).sellPrice,
-                          value: '${strategy['sell_price']}',
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: cs.primary,
+                            foregroundColor: cs.onPrimary,
+                          ),
+                          child: Text(l10n(context).close),
                         ),
-                        _StrategyDialogRow(
-                          label: l10n(context).expectedGain,
-                          value: '${strategy['expected_return']}',
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          l10n(context).summary,
-                          style: _DialogStyles.sectionTitle(context),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          strategy['summary'] ?? '',
-                          style: _DialogStyles.bodyText(context),
-                        ),
-                      ] else ...[
-                        widget.simulationType == SimulationType.kimchi
-                            ? buildKimchiStrategyExplanationContent(
-                              context: context,
-                              l10n: l10n(context),
-                              buyBase: buyThreshold,
-                              sellBase: sellThreshold,
-                              fx: fxForExplain,
-                            )
-                            : Text(
-                              (strategy != null && strategy.isNotEmpty)
-                                  ? '${strategy['summary'] ?? '전략 정보'}'
-                                  : '해당 날짜에 대한 전략이 없습니다.',
-                              style: _DialogStyles.bodyText(context),
-                            ),
-                      ],
+                      ),
                     ],
                   ),
                 ),
@@ -1108,66 +1059,12 @@ class _SimulationPageState extends State<SimulationPage>
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      extendBodyBehindAppBar: true,
+      backgroundColor: cs.surface,
       appBar: AppBar(
-        toolbarHeight: 48,
         title: Text(
-          widget.simulationType == SimulationType.kimchi
-              ? l10n(context).gimchBaseTrade
-              : l10n(context).aiBaseTrade,
-          style: _TitleStyles.appBarTitle(context).copyWith(fontSize: 18),
+          l10n(context).gimchBaseTrade,
+          style: _TitleStyles.appBarTitle(context),
         ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-        iconTheme: IconThemeData(color: cs.onSurface, size: 22),
-        flexibleSpace: ClipRRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    cs.surface.withValues(alpha: 0.92),
-                    cs.surface.withValues(alpha: 0.78),
-                  ],
-                ),
-                border: Border(
-                  bottom: BorderSide(color: _SimUi.glassBorder(cs), width: 0.5),
-                ),
-              ),
-            ),
-          ),
-        ),
-        actions:
-            widget.simulationType == SimulationType.kimchi
-                ? [
-                  IconButton(
-                    icon: Icon(Icons.settings, color: cs.primary),
-                    onPressed: () async {
-                      final sortedDates = widget.usdtMap.keys.toList()..sort();
-                      final defaultStartDate =
-                          sortedDates.isNotEmpty ? sortedDates.first : null;
-                      final defaultEndDate =
-                          sortedDates.isNotEmpty ? sortedDates.last : null;
-                      final success =
-                          await SimulationPage.showKimchiStrategyUpdatePopup(
-                            context,
-                            defaultStartDate: defaultStartDate,
-                            defaultEndDate: defaultEndDate,
-                            availableDates: sortedDates,
-                            hourlyDateLabels: widget.hourlyGranularity,
-                          );
-                      if (success) {
-                        runSimulation();
-                      }
-                    },
-                  ),
-                ]
-                : null,
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -1354,14 +1251,7 @@ class _SimulationPageState extends State<SimulationPage>
                                 builder:
                                     (_) => ChartOnlyPage.fromModel(
                                       widget.chartOnlyPageModel!,
-                                      initialShowAITrading:
-                                          widget.simulationType ==
-                                          SimulationType.ai,
-                                      initialShowGimchiTrading:
-                                          widget.simulationType ==
-                                          SimulationType.kimchi,
-                                      showAiTradingOption:
-                                          widget.showAiChartOverlayOption,
+                                      initialShowGimchiTrading: true,
                                       hourlyGranularity:
                                           widget.hourlyGranularity,
                                     ),
@@ -1408,9 +1298,7 @@ class _SimulationPageState extends State<SimulationPage>
   String _shareSimulationHeadline(AppLocalizations loc) {
     final appName = loc.usdt_signal;
     final mode =
-        widget.simulationType == SimulationType.ai
-            ? loc.aiSimulatedTradeTitle
-            : loc.kimchiSimulatedTradeTitle;
+        loc.kimchiSimulatedTradeTitle;
     return '$appName · $mode';
   }
 
@@ -1470,9 +1358,7 @@ class _SimulationPageState extends State<SimulationPage>
       initialKRW: _initialCapitalKrw,
       useCompoundInterest: compound,
     );
-    if (!annualYield.isNaN &&
-        !annualYield.isInfinite &&
-        annualYield != 0.0) {
+    if (!annualYield.isNaN && !annualYield.isInfinite && annualYield != 0.0) {
       annualYieldLine =
           '${annualYield >= 0 ? '+' : ''}${annualYield.toStringAsFixed(2)}%';
     }
@@ -1573,9 +1459,7 @@ class _SimulationPageState extends State<SimulationPage>
                         ],
                       ),
                       child: Icon(
-                        widget.simulationType == SimulationType.ai
-                            ? Icons.psychology
-                            : Icons.trending_up,
+                        Icons.trending_up,
                         color: cs.onPrimary,
                         size: 20,
                       ),
@@ -1589,9 +1473,7 @@ class _SimulationPageState extends State<SimulationPage>
                             children: [
                               Expanded(
                                 child: Text(
-                                  widget.simulationType == SimulationType.ai
-                                      ? l10n(context).aiSimulatedTradeTitle
-                                      : l10n(context).kimchiSimulatedTradeTitle,
+                                  l10n(context).kimchiSimulatedTradeTitle,
                                   style: _TitleStyles.headerCardTitle(context),
                                 ),
                               ),

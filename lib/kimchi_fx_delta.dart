@@ -5,13 +5,16 @@ import 'package:usdt_signal/api_service.dart';
 import 'package:usdt_signal/kimchi_fx_delta_client_tuning.dart';
 import 'package:usdt_signal/utils.dart';
 
-/// `delta_add_pp = bias_pp + k_pp_per_fx_percent * ((fx / fx_reference) - 1) * 100`
-/// — 환율이 기준 대비 몇 % 벗어났는지에 비례(퍼센트포인트)해 델타를 줍니다.
+/// `delta_add_pp = bias_pp + k * x + k_hi * max(0, x - x_onset)²`
+/// where `x = ((fx / fx_reference) - 1) * 100` (percent from ref).
+/// [highFxOnsetInclusive] 이상에서 2차항으로 Δ가 더 빠르게 커져 고환율 매도에 유리합니다.
 class KimchiFxDeltaAffineRatio {
   KimchiFxDeltaAffineRatio({
     required this.fxReference,
     required this.biasPp,
     required this.kPpPerFxPercent,
+    this.highFxOnsetInclusive,
+    this.kHiPpPerFxPercentSquared = 0,
     this.clampMin,
     this.clampMax,
   });
@@ -19,6 +22,10 @@ class KimchiFxDeltaAffineRatio {
   final double fxReference;
   final double biasPp;
   final double kPpPerFxPercent;
+  /// 이 환율(₩) 이상에서 2차 가속. `null`이면 선형만.
+  final double? highFxOnsetInclusive;
+  /// `max(0, x - x_onset)²` 계수 (pp / %²).
+  final double kHiPpPerFxPercentSquared;
   final double? clampMin;
   final double? clampMax;
 
@@ -29,22 +36,36 @@ class KimchiFxDeltaAffineRatio {
     if (ref == null || ref <= 0) return null;
     final k = (m['k_pp_per_fx_percent'] as num?)?.toDouble();
     if (k == null) return null;
-    final bias = (m['bias_pp'] as num?)?.toDouble() ?? 0.0;
+    final bias = (m['bias_pp'] as num?)?.toDouble();
+    if (bias == null) return null;
     final cmin = (m['clamp_min'] as num?)?.toDouble();
     final cmax = (m['clamp_max'] as num?)?.toDouble();
+    final onset = (m['high_fx_onset_inclusive'] as num?)?.toDouble();
+    final kHi = (m['k_hi_pp_per_fx_percent_squared'] as num?)?.toDouble() ?? 0;
     return KimchiFxDeltaAffineRatio(
       fxReference: ref,
       biasPp: bias,
       kPpPerFxPercent: k,
+      highFxOnsetInclusive: onset != null && onset > 0 ? onset : null,
+      kHiPpPerFxPercentSquared: kHi,
       clampMin: cmin,
       clampMax: cmax,
     );
   }
 
+  double _fxPctFromRef(double fx) => (fx / fxReference - 1.0) * 100.0;
+
   double deltaForFx(double fx) {
     if (fx <= 0 || fxReference <= 0) return biasPp;
-    final fxPct = (fx / fxReference - 1.0) * 100.0;
-    var d = biasPp + kPpPerFxPercent * fxPct;
+    final x = _fxPctFromRef(fx);
+    var d = biasPp + kPpPerFxPercent * x;
+    if (highFxOnsetInclusive != null &&
+        kHiPpPerFxPercentSquared != 0 &&
+        fx >= highFxOnsetInclusive!) {
+      final xOnset = _fxPctFromRef(highFxOnsetInclusive!);
+      final xHi = math.max(0.0, x - xOnset);
+      d += kHiPpPerFxPercentSquared * xHi * xHi;
+    }
     if (clampMin != null) d = math.max(d, clampMin!);
     if (clampMax != null) d = math.min(d, clampMax!);
     return d;
@@ -68,7 +89,12 @@ class KimchiFxDeltaPayload {
 
   static KimchiFxDeltaPayload? tryParse(Map<String, dynamic>? json) {
     if (json == null) return null;
-    final method = json['method'] as String? ?? 'equal_count_quintiles';
+    final method = json['method'] as String?;
+    if (method != KimchiFxDeltaClientTuning.methodQuintiles &&
+        method != KimchiFxDeltaClientTuning.methodAffine) {
+      return null;
+    }
+    final resolvedMethod = method!;
 
     KimchiFxDeltaAffineRatio? formula;
     final dm = json['delta_model'];
@@ -80,12 +106,12 @@ class KimchiFxDeltaPayload {
 
     final list = _parseBuckets(json['buckets']);
 
-    if (method == 'affine_fx_ratio') {
+    if (resolvedMethod == KimchiFxDeltaClientTuning.methodAffine) {
       if (formula == null) return null;
       return KimchiFxDeltaPayload(
         buckets: list,
         formulaModel: formula,
-        method: method,
+        method: resolvedMethod,
       );
     }
 
@@ -93,7 +119,7 @@ class KimchiFxDeltaPayload {
     return KimchiFxDeltaPayload(
       buckets: list,
       formulaModel: formula,
-      method: method,
+      method: resolvedMethod,
     );
   }
 
@@ -131,13 +157,7 @@ class KimchiFxDeltaPayload {
     KimchiFxDeltaClientTuning tuning,
   ) {
     if (tuning.method == KimchiFxDeltaClientTuning.methodAffine) {
-      final f = KimchiFxDeltaAffineRatio(
-        fxReference: tuning.affineFxReference,
-        biasPp: tuning.affineBiasPp,
-        kPpPerFxPercent: tuning.affineKPpPerFxPercent,
-        clampMin: tuning.affineClampMin,
-        clampMax: tuning.affineClampMax,
-      );
+      final f = tuning.toAffineRatio();
       return KimchiFxDeltaPayload(
         buckets: base.buckets,
         formulaModel: f,
@@ -162,31 +182,44 @@ class KimchiFxDeltaPayload {
 }
 
 extension KimchiFxDeltaPayloadClientSnapshot on KimchiFxDeltaPayload {
-  KimchiFxDeltaClientTuning toClientTuningSnapshot() =>
+  KimchiFxDeltaClientTuning? toClientTuningSnapshot() =>
       serverDefaultsForMethod(method);
 
   /// 서버 JSON 기준, [method]에 해당하는 필드만 서버 기본값으로 채웁니다.
-  KimchiFxDeltaClientTuning serverDefaultsForMethod(String method) {
-    final f = formulaModel;
-    final affineDefaults = KimchiFxDeltaClientTuning(
-      method: KimchiFxDeltaClientTuning.methodAffine,
-      affineFxReference: f?.fxReference ?? 1450.0,
-      affineBiasPp: f?.biasPp ?? 0.0,
-      affineKPpPerFxPercent: f?.kPpPerFxPercent ?? 0.0,
-      affineClampMin: f?.clampMin,
-      affineClampMax: f?.clampMax,
-      bucketDeltas: buckets.map((e) => e.deltaAddPp).toList(),
-    );
+  /// 서버에 필요한 필드가 없으면 `null`.
+  KimchiFxDeltaClientTuning? serverDefaultsForMethod(String method) {
     if (method == KimchiFxDeltaClientTuning.methodAffine) {
-      return affineDefaults;
+      final f = formulaModel;
+      if (f == null) return null;
+      return KimchiFxDeltaClientTuning(
+        method: KimchiFxDeltaClientTuning.methodAffine,
+        affineFxReference: f.fxReference,
+        affineBiasPp: f.biasPp,
+        affineKPpPerFxPercent: f.kPpPerFxPercent,
+        affineHighFxOnsetInclusive: f.highFxOnsetInclusive,
+        affineKHiPpPerFxPercentSquared: f.kHiPpPerFxPercentSquared,
+        affineClampMin: f.clampMin,
+        affineClampMax: f.clampMax,
+        bucketDeltas: buckets.map((e) => e.deltaAddPp).toList(),
+      );
     }
+
+    if (method != KimchiFxDeltaClientTuning.methodQuintiles || buckets.isEmpty) {
+      return null;
+    }
+
+    final f = formulaModel;
+    if (f == null) return null;
+
     return KimchiFxDeltaClientTuning(
       method: KimchiFxDeltaClientTuning.methodQuintiles,
-      affineFxReference: affineDefaults.affineFxReference,
-      affineBiasPp: affineDefaults.affineBiasPp,
-      affineKPpPerFxPercent: affineDefaults.affineKPpPerFxPercent,
-      affineClampMin: affineDefaults.affineClampMin,
-      affineClampMax: affineDefaults.affineClampMax,
+      affineFxReference: f.fxReference,
+      affineBiasPp: f.biasPp,
+      affineKPpPerFxPercent: f.kPpPerFxPercent,
+      affineHighFxOnsetInclusive: f.highFxOnsetInclusive,
+      affineKHiPpPerFxPercentSquared: f.kHiPpPerFxPercentSquared,
+      affineClampMin: f.clampMin,
+      affineClampMax: f.clampMax,
       bucketDeltas: buckets.map((e) => e.deltaAddPp).toList(),
     );
   }
@@ -208,7 +241,8 @@ class KimchiFxDeltaBucket {
   final double deltaAddPp;
 
   double get upperBoundInclusive =>
-      fxMaxInclusive ?? (fxMaxExclusive != null ? fxMaxExclusive! - 1e-9 : fxMinInclusive);
+      fxMaxInclusive ??
+      (fxMaxExclusive != null ? fxMaxExclusive! - 1e-9 : fxMinInclusive);
 
   static KimchiFxDeltaBucket? tryParse(Map<String, dynamic> m) {
     final order = (m['order'] as num?)?.toInt() ?? 0;
@@ -255,9 +289,15 @@ class KimchiFxDeltaStore {
   static final KimchiFxDeltaStore instance = KimchiFxDeltaStore._internal();
 
   KimchiFxDeltaPayload? _payload;
+  String? _loadError;
   Future<void>? _inflight;
 
   KimchiFxDeltaPayload? get payload => _payload;
+
+  /// 네트워크 실패·JSON 파싱 실패 시 메시지. 성공 후에는 `null`.
+  String? get loadError => _loadError;
+
+  bool get hasPayload => _payload != null;
 
   /// 서버 JSON + (옵션) 클라이언트 덮어쓰기 반영본.
   KimchiFxDeltaPayload? get effectivePayload {
@@ -270,6 +310,7 @@ class KimchiFxDeltaStore {
 
   void clearMemoryCache() {
     _payload = null;
+    _loadError = null;
     _inflight = null;
   }
 
@@ -288,25 +329,35 @@ class KimchiFxDeltaStore {
   }
 
   Future<void> _load(ApiService api) async {
+    _loadError = null;
     try {
       final map = await api.fetchKimchiFxDeltaPayload();
+      if (map == null) {
+        _payload = null;
+        _loadError = 'fetch_failed';
+        return;
+      }
       _payload = KimchiFxDeltaPayload.tryParse(map);
+      if (_payload == null) {
+        _loadError = 'parse_failed';
+      }
     } catch (e) {
       if (kDebugMode) {
         // ignore: avoid_print
         print('KimchiFxDeltaStore load failed: $e');
       }
       _payload = null;
+      _loadError = 'fetch_failed';
     }
   }
 
-  /// 설정에서 꺼져 있으면 0.
-  double deltaForFxWhenEnabled(double fx) {
+  /// 설정에서 꺼져 있으면 0. 켜져 있는데 payload 없으면 `null`.
+  double? deltaForFxWhenEnabled(double fx) {
     if (!SimulationCondition.instance.kimchiFxDeltaCorrectionEnabled) {
       return 0;
     }
-    return deltaForFx(fx);
+    return effectivePayload?.deltaForFx(fx);
   }
 
-  double deltaForFx(double fx) => effectivePayload?.deltaForFx(fx) ?? 0;
+  double? deltaForFx(double fx) => effectivePayload?.deltaForFx(fx);
 }

@@ -22,6 +22,7 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'api_service.dart';
 import 'kimchi_fx_delta.dart';
+import 'kimchi_chart_tooltip.dart';
 import 'utils.dart';
 import 'widgets.dart';
 import 'package:app_tracking_transparency/app_tracking_transparency.dart'; // ATT 패키지 import 추가
@@ -44,7 +45,6 @@ class _MainDailyChartSnapshot {
   final List<USDTChartData> usdtChartData;
   final double kimchiMin;
   final double kimchiMax;
-  final SimulationYieldData? aiYield;
   final SimulationYieldData? gimchiYield;
   final ChartOnlyPageModel? chartOnlyModel;
 
@@ -55,7 +55,6 @@ class _MainDailyChartSnapshot {
     required this.usdtChartData,
     required this.kimchiMin,
     required this.kimchiMax,
-    this.aiYield,
     this.gimchiYield,
     this.chartOnlyModel,
   });
@@ -232,6 +231,7 @@ class _MyHomePageState extends State<MyHomePage>
     enablePinching: true,
     enablePanning: true,
     enableDoubleTapZooming: true,
+    enableMouseWheelZooming: true,
     zoomMode: ZoomMode.xy,
   );
   List<ChartData> kimchiPremium = [];
@@ -239,11 +239,9 @@ class _MyHomePageState extends State<MyHomePage>
   List<ChartData> exchangeRates = [];
   double plotOffsetEnd = 0;
   bool showKimchiPremium = true; // 김치 프리미엄 표시 여부
-  bool showAITrading = false; // AI trading 표시 여부 추가
-  bool showGimchiTrading = false; // 김프 거래 표시 여부 추가
+  bool showGimchiTrading = false;
   bool showExchangeRate = true; // 환율 표시 여부 추가
   String? strategyText;
-  StrategyMap? latestStrategy;
   List<USDTChartData> usdtChartData = [];
   Map<DateTime, USDTChartData> usdtMap = {};
   List<StrategyMap> strategyList = [];
@@ -266,7 +264,6 @@ class _MyHomePageState extends State<MyHomePage>
 
   double kimchiMin = 0;
   double kimchiMax = 0;
-  SimulationYieldData? aiYieldData;
   SimulationYieldData? gimchiYieldData;
 
   ChartOnlyPageModel? chartOnlyPageModel;
@@ -285,7 +282,6 @@ class _MyHomePageState extends State<MyHomePage>
 
   // PlotBand 표시 여부 상태 추가
   bool showKimchiPlotBands = false;
-  int _selectedStrategyTabIndex = 0; // 0: AI 매매 전략, 1: 김프 매매 전략
   TodayCommentAlarmType _todayCommentAlarmType =
       TodayCommentAlarmType.off; // enum으로 변경
 
@@ -403,6 +399,7 @@ class _MyHomePageState extends State<MyHomePage>
 
     if (!kIsWeb) {
       _todayCommentAlarmType = await TodayCommentAlarmTypePrefs.loadFromPrefs();
+      await TodayCommentAlarmTypePrefs.migrateLegacyAiAlarmSettings();
 
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (Platform.isIOS) {
@@ -941,7 +938,6 @@ class _MyHomePageState extends State<MyHomePage>
               .toList(),
       kimchiMin: kimchiMin,
       kimchiMax: kimchiMax,
-      aiYield: aiYieldData,
       gimchiYield: gimchiYieldData,
       chartOnlyModel: chartOnlyPageModel,
     );
@@ -1011,7 +1007,6 @@ class _MyHomePageState extends State<MyHomePage>
     if (!mounted) return;
     setState(() {
       gimchiYieldData = gy;
-      aiYieldData = null;
       chartOnlyPageModel = _buildChartModelFromCurrentCharts();
     });
   }
@@ -1096,8 +1091,6 @@ class _MyHomePageState extends State<MyHomePage>
         _applyHourlyMergedChartData(merged);
         _chartGranularity = MainChartGranularity.hourly;
         _hourlyChartsLoading = false;
-        aiYieldData = null;
-        _selectedStrategyTabIndex = 1;
       });
       unawaited(() async {
         final spotUsdt = await usdtFut;
@@ -1168,17 +1161,6 @@ class _MyHomePageState extends State<MyHomePage>
       }
     }
 
-    SimulationYieldData? newAiYield;
-    if (strategyList.isNotEmpty) {
-      newAiYield = SimulationModel.getYieldForAISimulation(
-        exchangeRates,
-        strategyList,
-        usdtMap,
-        initialKRW: simInitial,
-        buyFee: buyFee,
-        sellFee: sellFee,
-      );
-    }
     final newGimchiYield = SimulationModel.getYieldForGimchiSimulation(
       exchangeRates,
       strategyList,
@@ -1201,20 +1183,13 @@ class _MyHomePageState extends State<MyHomePage>
 
     if (!mounted) return;
     setState(() {
-      aiYieldData = newAiYield;
       gimchiYieldData = newGimchiYield;
       chartOnlyPageModel = newChartModel;
     });
     _persistDailyChartsSnapshotIfDaily();
   }
 
-  bool _canOpenSimulation(SimulationType type) {
-    if (type == SimulationType.ai) {
-      return _chartGranularity == MainChartGranularity.daily &&
-          latestStrategy != null;
-    }
-    return usdtMap.isNotEmpty;
-  }
+  bool _canOpenSimulation() => usdtMap.isNotEmpty;
 
   Widget _buildChartGranularityBar() {
     final cs = Theme.of(context).colorScheme;
@@ -1533,16 +1508,6 @@ class _MyHomePageState extends State<MyHomePage>
 
     if (_adsStatus == AdsStatus.shown || _hasAdFreePass) return null;
 
-    final aiReturn =
-        aiYieldData != null
-            ? (_showAnnualYield
-                ? '${aiYieldData!.annualYield.toStringAsFixed(2)}%'
-                : '${aiYieldData!.totalReturn.toStringAsFixed(1)}%')
-            : '-';
-    final aiDays =
-        !_showAnnualYield && aiYieldData?.tradingDays != null
-            ? ' (${aiYieldData!.tradingDays} 🗓️)'
-            : '';
     final gimchiReturn =
         gimchiYieldData != null
             ? (_showAnnualYield
@@ -1559,23 +1524,6 @@ class _MyHomePageState extends State<MyHomePage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (_chartGranularity == MainChartGranularity.daily) ...[
-            _buildYieldInfoTile(
-              context,
-              title:
-                  _showAnnualYield
-                      ? _getAnnualYieldTitle(context, isAi: true)
-                      : l10n(context).aiReturn,
-              valueText: aiReturn,
-              detailText: aiDays,
-              onTap: () {
-                setState(() {
-                  _showAnnualYield = !_showAnnualYield;
-                });
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
           _buildYieldInfoTile(
             context,
             title:
@@ -1893,9 +1841,6 @@ class _MyHomePageState extends State<MyHomePage>
         final newStrategyList = List<StrategyMap>.from(
           response['strategies'] ?? [],
         );
-        final newLatestStrategy =
-            newStrategyList.isNotEmpty ? newStrategyList.first : null;
-
         Map<DateTime, Map<String, double>>? nextPremiumTrends = premiumTrends;
         if (response['kimchiTrends'] != null) {
           print('서버에서 받은 김치 트렌드 데이터 개수: ${response['kimchiTrends'].length}');
@@ -1936,24 +1881,11 @@ class _MyHomePageState extends State<MyHomePage>
         if (_chartGranularity == MainChartGranularity.hourly) {
           setState(() {
             strategyList = newStrategyList;
-            latestStrategy = newLatestStrategy;
             premiumTrends = nextPremiumTrends;
           });
           await _recalculateHourlyGimchiYieldOnly();
           print('전략 데이터 로딩 완료 (시간 차트)');
           return;
-        }
-
-        SimulationYieldData? newAiYield;
-        if (newStrategyList.isNotEmpty) {
-          newAiYield = SimulationModel.getYieldForAISimulation(
-            exchangeRates,
-            newStrategyList,
-            usdtMap,
-            initialKRW: simInitialKrw,
-            buyFee: buyFee,
-            sellFee: sellFee,
-          );
         }
 
         final newGimchiYield = SimulationModel.getYieldForGimchiSimulation(
@@ -1979,9 +1911,7 @@ class _MyHomePageState extends State<MyHomePage>
 
         setState(() {
           strategyList = newStrategyList;
-          latestStrategy = newLatestStrategy;
           premiumTrends = nextPremiumTrends;
-          aiYieldData = newAiYield;
           gimchiYieldData = newGimchiYield;
           chartOnlyPageModel = newChartModel;
         });
@@ -2251,27 +2181,18 @@ class _MyHomePageState extends State<MyHomePage>
   Future<Widget> _buildTodayComment(USDTChartData? todayUsdt) async {
     final usdtPrice = todayUsdt?.close ?? 0.0;
 
-    // AI 매매 전략 탭
     double buyPrice = 0.0;
     double sellPrice = 0.0;
     String comment = '';
-    double exchangeRateValue = exchangeRates.safeLast?.value ?? 0;
-
-    if (_chartGranularity != MainChartGranularity.hourly &&
-        _selectedStrategyTabIndex == 0) {
-      buyPrice = latestStrategy?['buy_price'] ?? 0;
-      sellPrice = latestStrategy?['sell_price'] ?? 0;
-    } else {
-      // 김치 프리미엄 매수/매도 가격 계산
-      final prices = SimulationModel.getKimchiTradingPrices(
-        exchangeRateValue: exchangeRateValue,
-        premiumTrends: premiumTrends,
-        targetDate: todayUsdt?.time,
-        exchangeRates: exchangeRates,
-      );
-      buyPrice = prices.buyPrice;
-      sellPrice = prices.sellPrice;
-    }
+    final exchangeRateValue = exchangeRates.safeLast?.value ?? 0;
+    final prices = SimulationModel.getKimchiTradingPrices(
+      exchangeRateValue: exchangeRateValue,
+      premiumTrends: premiumTrends,
+      targetDate: todayUsdt?.time,
+      exchangeRates: exchangeRates,
+    );
+    buyPrice = prices.buyPrice;
+    sellPrice = prices.sellPrice;
 
     final cs = Theme.of(context).colorScheme;
     // 디자인 강조: 배경색, 아이콘, 컬러 분기 (다크 대응)
@@ -2443,16 +2364,12 @@ class _MyHomePageState extends State<MyHomePage>
         color:
             _todayCommentAlarmType == TodayCommentAlarmType.kimchi
                 ? cs.tertiaryContainer.withValues(alpha: 0.55)
-                : _todayCommentAlarmType == TodayCommentAlarmType.ai
-                ? cs.primaryContainer.withValues(alpha: 0.55)
                 : cs.surfaceContainerHighest,
         shape: BoxShape.circle,
         border: Border.all(
           color:
               _todayCommentAlarmType == TodayCommentAlarmType.kimchi
                   ? cs.tertiary.withValues(alpha: 0.5)
-                  : _todayCommentAlarmType == TodayCommentAlarmType.ai
-                  ? cs.primary.withValues(alpha: 0.45)
                   : cs.outline.withValues(alpha: 0.45),
           width: 1,
         ),
@@ -2464,15 +2381,12 @@ class _MyHomePageState extends State<MyHomePage>
         child: Padding(
           padding: const EdgeInsets.all(8.0),
           child: Icon(
-            _todayCommentAlarmType == TodayCommentAlarmType.ai ||
-                    _todayCommentAlarmType == TodayCommentAlarmType.kimchi
+            _todayCommentAlarmType == TodayCommentAlarmType.kimchi
                 ? Icons.notifications_active
                 : Icons.notifications_off,
             color:
                 _todayCommentAlarmType == TodayCommentAlarmType.kimchi
                     ? cs.tertiary
-                    : _todayCommentAlarmType == TodayCommentAlarmType.ai
-                    ? cs.primary
                     : cs.onSurfaceVariant,
             size: 20,
           ),
@@ -2661,14 +2575,8 @@ class _MyHomePageState extends State<MyHomePage>
     List<PlotBand> kimchiPlotBands =
         showKimchiPlotBands ? getKimchiPlotBands() : [];
 
-    final simulationType =
-        _chartGranularity == MainChartGranularity.hourly ||
-                _selectedStrategyTabIndex != 0
-            ? SimulationType.kimchi
-            : SimulationType.ai;
+    const simulationType = SimulationType.kimchi;
     final nextPoint = SimulationModel.getNextTradingPoint(
-      simulationType: simulationType,
-      latestStrategy: latestStrategy,
       exchangeRates: exchangeRates,
       usdtChartData: usdtChartData,
       premiumTrends: premiumTrends,
@@ -2716,15 +2624,28 @@ class _MyHomePageState extends State<MyHomePage>
                 final localeTag =
                     Localizations.localeOf(context).toLanguageTag();
                 final nfFx = NumberFormat('#,##0.#', localeTag);
+                final loc = l10n(context);
                 final fxLine =
                     exchangeRate.abs() >= 1e-9
-                        ? '\n${l10n(context).exchangeRate}: ${nfFx.format(exchangeRate)}'
+                        ? '\n${loc.exchangeRate}: ${nfFx.format(exchangeRate)}'
                         : '';
 
-                // 툴팁: 김치 프리미엄 위에 환율 한 줄
-                args.text =
+                var tooltipText =
                     '${args.text}$fxLine\n'
-                    '${l10n(context).gimchiPremiem}: ${kimchiPremiumValue.toStringAsFixed(2)}%';
+                    '${loc.gimchiPremiem}: ${kimchiPremiumValue.toStringAsFixed(2)}%';
+
+                if (args.header == loc.usdt && exchangeRate > 0) {
+                  final recLines = kimchiTradeRecommendLinesForTooltip(
+                    l10n: loc,
+                    localeTag: localeTag,
+                    exchangeRate: exchangeRate,
+                  );
+                  if (recLines != null) {
+                    tooltipText += '\n$recLines';
+                  }
+                }
+
+                args.text = tooltipText;
               },
 
               legend: Legend(
@@ -2778,7 +2699,7 @@ class _MyHomePageState extends State<MyHomePage>
                   ),
               ],
               zoomPanBehavior: _zoomPanBehavior,
-              tooltipBehavior: TooltipBehavior(enable: true),
+              tooltipBehavior: TooltipBehavior(enable: true, duration: 20000),
               annotations: [
                 if (nextPoint != null)
                   CartesianChartAnnotation(
@@ -2793,14 +2714,15 @@ class _MyHomePageState extends State<MyHomePage>
                         nextPoint.isBuy,
                         nextPoint.price,
                         nextPoint.kimchiPremium,
-                        exchangeRate: usdtChartData.isEmpty
-                            ? null
-                            : () {
-                                final er = _exchangeRateAtChartPoint(
-                                  usdtChartData.last.time,
-                                );
-                                return er > 0 ? er : null;
-                              }(),
+                        exchangeRate:
+                            usdtChartData.isEmpty
+                                ? null
+                                : () {
+                                  final er = _exchangeRateAtChartPoint(
+                                    usdtChartData.last.time,
+                                  );
+                                  return er > 0 ? er : null;
+                                }(),
                         localeTag:
                             Localizations.localeOf(context).toLanguageTag(),
                       ),
@@ -2824,7 +2746,7 @@ class _MyHomePageState extends State<MyHomePage>
                   ),
               ],
               series: <CartesianSeries>[
-                if (!(showAITrading || showGimchiTrading))
+                if (!showGimchiTrading)
                   // 일반 라인 차트 (USDT)
                   LineSeries<USDTChartData, DateTime>(
                     name: l10n(context).usdt,
@@ -2925,9 +2847,6 @@ class _MyHomePageState extends State<MyHomePage>
                             builder:
                                 (_) => ChartOnlyPage.fromModel(
                                   chartOnlyPageModel!,
-                                  showAiTradingOption:
-                                      _chartGranularity !=
-                                      MainChartGranularity.hourly,
                                   hourlyGranularity:
                                       _chartGranularity ==
                                       MainChartGranularity.hourly,
@@ -2939,7 +2858,62 @@ class _MyHomePageState extends State<MyHomePage>
             ),
           ),
         ),
+        // 줌 인/아웃 버튼 (플롯 영역 하단 중앙, X축/레전드 위에 떠 있도록)
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 60,
+          child: Center(child: _buildZoomControls(cs, _zoomPanBehavior)),
+        ),
       ],
+    );
+  }
+
+  /// 차트 위에 떠 있는 줌 인/아웃 컨트롤. 메인 차트와 확대 차트에서 공통 사용.
+  Widget _buildZoomControls(ColorScheme cs, ZoomPanBehavior behavior) {
+    return Container(
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHigh.withValues(alpha: 0.82),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: cs.outline.withValues(alpha: 0.4)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.all(6),
+            constraints: const BoxConstraints(),
+            icon: Icon(Icons.remove, color: cs.primary, size: 20),
+            tooltip: '축소',
+            onPressed: () {
+              behavior.zoomOut();
+            },
+          ),
+          Container(
+            width: 1,
+            height: 20,
+            color: cs.outline.withValues(alpha: 0.3),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.all(6),
+            constraints: const BoxConstraints(),
+            icon: Icon(Icons.add, color: cs.primary, size: 20),
+            tooltip: '확대',
+            onPressed: () {
+              behavior.zoomIn();
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -3024,117 +2998,28 @@ class _MyHomePageState extends State<MyHomePage>
     return kimchiPlotBands;
   }
 
-  // 5. 매매 전략 영역
+  // 5. 매매 전략 영역 (김프 전략만)
   Widget _buildStrategySection() {
     final adUnlockButton = shouldShowAdUnlockButton();
     if (adUnlockButton != null) {
-      return adUnlockButton; // 광고 시청 버튼이 있다면 바로 반환
+      return adUnlockButton;
     }
 
-    final cs = Theme.of(context).colorScheme;
-    final isHourly = _chartGranularity == MainChartGranularity.hourly;
-    final tabCount = isHourly ? 1 : 2;
-    final initialTab =
-        isHourly ? 0 : _selectedStrategyTabIndex.clamp(0, tabCount - 1);
-
-    return DefaultTabController(
-      key: ValueKey<String>(isHourly ? 'strategy_hourly' : 'strategy_daily'),
-      length: tabCount,
-      initialIndex: initialTab,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TabBar(
-              labelColor: cs.primary,
-              unselectedLabelColor: cs.onSurfaceVariant,
-              indicatorColor: cs.primary,
-              dividerColor: cs.outline.withValues(alpha: 0.35),
-              labelStyle: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-              unselectedLabelStyle: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.normal,
-              ),
-              onTap: (idx) {
-                setState(() {
-                  // 시간 단위는 김프 탭만 있음(탭 인덱스 0) → 내부 상태는 김프=1로 유지
-                  _selectedStrategyTabIndex = isHourly ? 1 : idx;
-                });
-              },
-              tabs:
-                  isHourly
-                      ? [Tab(text: l10n(context).gimchiStrategy)]
-                      : [
-                        Tab(text: l10n(context).aiStrategy),
-                        Tab(text: l10n(context).gimchiStrategy),
-                      ],
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 250,
-              child: TabBarView(
-                physics: const NeverScrollableScrollPhysics(),
-                children:
-                    isHourly
-                        ? [
-                          FutureBuilder<Widget>(
-                            future: _buildGimchiStrategyTab(),
-                            builder: (context, snapshot) {
-                              return snapshot.data ?? const SizedBox();
-                            },
-                          ),
-                        ]
-                        : [
-                          FutureBuilder<Widget>(
-                            future: _buildAiStrategyTab(),
-                            builder: (context, snapshot) {
-                              return snapshot.data ?? const SizedBox();
-                            },
-                          ),
-                          FutureBuilder<Widget>(
-                            future: _buildGimchiStrategyTab(),
-                            builder: (context, snapshot) {
-                              return snapshot.data ?? const SizedBox();
-                            },
-                          ),
-                        ],
-              ),
-            ),
-          ],
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: SizedBox(
+        height: 250,
+        child: FutureBuilder<Widget>(
+          future: _buildGimchiStrategyTab(),
+          builder: (context, snapshot) {
+            return snapshot.data ?? const SizedBox();
+          },
         ),
       ),
     );
   }
 
-  // --- 기존 AI 매매 전략 UI --- 분리된 메소드
-  Future<Widget> _buildAiStrategyTab() async {
-    final buyPrice = latestStrategy?['buy_price'];
-    final sellPrice = latestStrategy?['sell_price'];
-    final profitRate = latestStrategy?['expected_return'];
-    final strategy = latestStrategy?['summary'];
-    final profitRateStr =
-        profitRate != null
-            ? (profitRate >= 0
-                ? '+${profitRate.toStringAsFixed(2)}%'
-                : '${profitRate.toStringAsFixed(2)}%')
-            : '-';
-
-    return makeStrategyTab(
-      SimulationType.ai,
-      l10n(context).seeStrategy,
-      buyPrice,
-      sellPrice,
-      profitRateStr,
-      strategy,
-    );
-  }
-
   Future<Widget> makeStrategyTab(
-    SimulationType type,
     String title,
     buyPrice,
     sellPrice,
@@ -3250,33 +3135,32 @@ class _MyHomePageState extends State<MyHomePage>
                         ),
                       ),
                       actions: [
-                        if (type == SimulationType.kimchi)
-                          TextButton(
-                            onPressed: () async {
-                              Navigator.of(context).pop();
-                              final sortedDates = usdtMap.keys.toList()..sort();
-                              final defaultStartDate =
-                                  sortedDates.isNotEmpty
-                                      ? sortedDates.first
-                                      : null;
-                              final defaultEndDate =
-                                  sortedDates.isNotEmpty
-                                      ? sortedDates.last
-                                      : null;
-                              await SimulationPage.showKimchiStrategyUpdatePopup(
-                                context,
-                                defaultStartDate: defaultStartDate,
-                                defaultEndDate: defaultEndDate,
-                                availableDates: sortedDates,
-                                hourlyDateLabels:
-                                    _chartGranularity ==
-                                    MainChartGranularity.hourly,
-                              );
-                            },
-                            child: Text(
-                              AppLocalizations.of(context)!.changeStrategy,
-                            ),
+                        TextButton(
+                          onPressed: () async {
+                            Navigator.of(context).pop();
+                            final sortedDates = usdtMap.keys.toList()..sort();
+                            final defaultStartDate =
+                                sortedDates.isNotEmpty
+                                    ? sortedDates.first
+                                    : null;
+                            final defaultEndDate =
+                                sortedDates.isNotEmpty
+                                    ? sortedDates.last
+                                    : null;
+                            await SimulationPage.showKimchiStrategyUpdatePopup(
+                              context,
+                              defaultStartDate: defaultStartDate,
+                              defaultEndDate: defaultEndDate,
+                              availableDates: sortedDates,
+                              hourlyDateLabels:
+                                  _chartGranularity ==
+                                  MainChartGranularity.hourly,
+                            );
+                          },
+                          child: Text(
+                            AppLocalizations.of(context)!.changeStrategy,
                           ),
+                        ),
                         TextButton(
                           onPressed: () => Navigator.of(context).pop(),
                           child: Text(l10n(context).close),
@@ -3309,16 +3193,14 @@ class _MyHomePageState extends State<MyHomePage>
                   foregroundColor: cs.primary,
                 ),
                 onPressed:
-                    !_canOpenSimulation(type)
+                    !_canOpenSimulation()
                         ? null
                         : () async {
-                          // 시뮬레이션 시작 이벤트 로깅
                           if (!kIsWeb) {
                             await FirebaseAnalytics.instance.logEvent(
                               name: 'simulation_started',
                               parameters: {
-                                'type':
-                                    type == SimulationType.ai ? 'ai' : 'kimchi',
+                                'type': 'kimchi',
                                 'timestamp':
                                     DateTime.now().millisecondsSinceEpoch,
                               },
@@ -3341,7 +3223,7 @@ class _MyHomePageState extends State<MyHomePage>
                                   );
                                 }
                                 return SimulationPage(
-                                  simulationType: type,
+                                  simulationType: SimulationType.kimchi,
                                   usdtMap: usdtMap,
                                   strategyList: strategyList,
                                   usdExchangeRates: exchangeRates,
@@ -3349,9 +3231,6 @@ class _MyHomePageState extends State<MyHomePage>
                                   chartOnlyPageModel: chartOnlyPageModel,
                                   settings: settings,
                                   showViewHistoryButton:
-                                      _chartGranularity !=
-                                      MainChartGranularity.hourly,
-                                  showAiChartOverlayOption:
                                       _chartGranularity !=
                                       MainChartGranularity.hourly,
                                   hourlyGranularity:
@@ -3424,13 +3303,6 @@ class _MyHomePageState extends State<MyHomePage>
         children: [
           _buildAlarmOptionTile(
             context,
-            TodayCommentAlarmType.ai,
-            _todayCommentAlarmType,
-            l10n(context).aIalert,
-            l10n(context).aIalertDescription,
-          ),
-          _buildAlarmOptionTile(
-            context,
             TodayCommentAlarmType.kimchi,
             _todayCommentAlarmType,
             l10n(context).gimpAlert,
@@ -3455,8 +3327,7 @@ class _MyHomePageState extends State<MyHomePage>
     if (updatedType != prevType) {
       // 알림을 켜는 경우 권한 체크
       if (prevType == TodayCommentAlarmType.off &&
-          (updatedType == TodayCommentAlarmType.ai ||
-              updatedType == TodayCommentAlarmType.kimchi)) {
+          updatedType == TodayCommentAlarmType.kimchi) {
         final status = await Permission.notification.status;
         if (!status.isGranted) {
           final goToSettings = await LiquidGlassDialog.show<bool>(
@@ -3526,7 +3397,6 @@ class _MyHomePageState extends State<MyHomePage>
     final profitRateStr = '+${profitRate.toStringAsFixed(1)}%';
 
     return makeStrategyTab(
-      SimulationType.kimchi,
       l10n(context).seeStrategy,
       buyPrice,
       sellPrice,

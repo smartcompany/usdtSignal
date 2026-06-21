@@ -104,8 +104,7 @@ String getTooltipMessage(
     action = l10n.nextSellPoint;
   }
 
-  String strategyName =
-      simulationType == SimulationType.ai ? 'AI' : l10n.kimchiPremiumShort;
+  String strategyName = l10n.kimchiPremiumShort;
 
   String message = '[$strategyName] $action\n';
   message += '${l10n.priceLabel} : ${price.toStringAsFixed(1)}\n';

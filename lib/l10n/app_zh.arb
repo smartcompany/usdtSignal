@@ -2,6 +2,20 @@
   "usdt": "USDT",
   "exchangeRate": "汇率",
   "gimchiPremiem": "韩元溢价",
+  "chartTooltipBuyRecommend": "买入参考: {price}({premium}%)",
+  "@chartTooltipBuyRecommend": {
+    "placeholders": {
+      "price": { "type": "String" },
+      "premium": { "type": "String" }
+    }
+  },
+  "chartTooltipSellRecommend": "卖出参考: {price}({premium}%)",
+  "@chartTooltipSellRecommend": {
+    "placeholders": {
+      "price": { "type": "String" },
+      "premium": { "type": "String" }
+    }
+  },
   "xrpFundingRateTitle": "XRP 资金费率(Y)",
   "fundingRateInterval": "({hours}h)",
   "@fundingRateInterval": {
@@ -78,6 +92,8 @@
   "kimchiPremiumPercent": "泡菜溢价 (%)",
   "resetChart": "重置图表",
   "backToPreviousChart": "上一张图表",
+  "zoomIn": "放大",
+  "zoomOut": "缩小",
   "kimchiPremium": "泡菜溢价",
   "aiBuySell": "AI 买入/卖出",
   "kimchiPremiumBuySell": "泡菜溢价买入/卖出",
@@ -254,12 +270,28 @@
   "kimchiFxDeltaTuningFxReference": "基准汇率 (fx_reference)",
   "kimchiFxDeltaTuningKPerFxPercent": "k_pp_per_fx_percent",
   "kimchiFxDeltaTuningBiasPp": "bias_pp",
+  "kimchiFxDeltaTuningHighFxOnset": "高汇率二次加速起点(₩)",
+  "kimchiFxDeltaTuningHighFxOnsetHint": "留空则仅线性",
+  "kimchiFxDeltaTuningKHiFx2": "k_hi（高汇率二次，pp/%²）",
+  "kimchiFxDeltaTuningKHiFx2Hint": "0 表示无二次加速",
   "kimchiFxDeltaTuningClampMin": "clamp_min（留空=不限制）",
   "kimchiFxDeltaTuningClampMax": "clamp_max（留空=不限制）",
   "kimchiFxDeltaTuningDeltaPp": "Δ (百分点)",
   "kimchiFxDeltaTuningApply": "应用",
   "kimchiFxDeltaTuningReset": "恢复服务端默认",
   "kimchiFxDeltaTuningNoPayload": "无法加载服务端 Δ JSON，请检查网络后重试。",
+  "kimchiFxDeltaPayloadInvalid": "服务端 Δ JSON 格式无效或不完整。",
+  "kimchiFxDeltaLoadFailed": "无法加载服务端 Δ 设置。",
+  "kimchiFxDeltaTuningInvalidFields": "请检查输入值。",
   "kimchiFxDeltaTuningSaved": "已保存。",
-  "kimchiFxDeltaTuningSaveFailed": "保存失败。"
+  "kimchiFxDeltaTuningSaveFailed": "保存失败。",
+  "kimchiFxDeltaPreviewTitle": "校正曲线预览（USD/KRW 1,300~1,600）",
+  "kimchiFxDeltaPreviewFx": "汇率 · {fx}韩元",
+  "@kimchiFxDeltaPreviewFx": {
+    "placeholders": { "fx": { "type": "String" } }
+  },
+  "kimchiFxDeltaPreviewDelta": "泡菜溢价 Δ · {delta} pp",
+  "@kimchiFxDeltaPreviewDelta": {
+    "placeholders": { "delta": { "type": "String" } }
+  }
 }

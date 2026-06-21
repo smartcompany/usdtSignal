@@ -118,6 +118,18 @@ abstract class AppLocalizations {
   /// **'김치 프리미엄'**
   String get gimchiPremiem;
 
+  /// No description provided for @chartTooltipBuyRecommend.
+  ///
+  /// In ko, this message translates to:
+  /// **'매수추천: {price}({premium}%)'**
+  String chartTooltipBuyRecommend(String price, String premium);
+
+  /// No description provided for @chartTooltipSellRecommend.
+  ///
+  /// In ko, this message translates to:
+  /// **'매도추천: {price}({premium}%)'**
+  String chartTooltipSellRecommend(String price, String premium);
+
   /// No description provided for @xrpFundingRateTitle.
   ///
   /// In ko, this message translates to:
@@ -519,6 +531,18 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'차트 이전'**
   String get backToPreviousChart;
+
+  /// No description provided for @zoomIn.
+  ///
+  /// In ko, this message translates to:
+  /// **'확대'**
+  String get zoomIn;
+
+  /// No description provided for @zoomOut.
+  ///
+  /// In ko, this message translates to:
+  /// **'축소'**
+  String get zoomOut;
 
   /// No description provided for @kimchiPremium.
   ///
@@ -1240,6 +1264,30 @@ abstract class AppLocalizations {
   /// **'bias_pp'**
   String get kimchiFxDeltaTuningBiasPp;
 
+  /// No description provided for @kimchiFxDeltaTuningHighFxOnset.
+  ///
+  /// In ko, this message translates to:
+  /// **'고환율 2차 시작 (₩)'**
+  String get kimchiFxDeltaTuningHighFxOnset;
+
+  /// No description provided for @kimchiFxDeltaTuningHighFxOnsetHint.
+  ///
+  /// In ko, this message translates to:
+  /// **'비우면 선형만'**
+  String get kimchiFxDeltaTuningHighFxOnsetHint;
+
+  /// No description provided for @kimchiFxDeltaTuningKHiFx2.
+  ///
+  /// In ko, this message translates to:
+  /// **'k_hi (고환율 2차, pp/%²)'**
+  String get kimchiFxDeltaTuningKHiFx2;
+
+  /// No description provided for @kimchiFxDeltaTuningKHiFx2Hint.
+  ///
+  /// In ko, this message translates to:
+  /// **'0이면 2차 가속 없음'**
+  String get kimchiFxDeltaTuningKHiFx2Hint;
+
   /// No description provided for @kimchiFxDeltaTuningClampMin.
   ///
   /// In ko, this message translates to:
@@ -1276,6 +1324,24 @@ abstract class AppLocalizations {
   /// **'서버 델타 JSON을 불러오지 못했습니다. 네트워크 후 다시 시도하세요.'**
   String get kimchiFxDeltaTuningNoPayload;
 
+  /// No description provided for @kimchiFxDeltaPayloadInvalid.
+  ///
+  /// In ko, this message translates to:
+  /// **'서버 델타 JSON 형식이 올바르지 않습니다.'**
+  String get kimchiFxDeltaPayloadInvalid;
+
+  /// No description provided for @kimchiFxDeltaLoadFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'서버 델타를 불러오지 못했습니다.'**
+  String get kimchiFxDeltaLoadFailed;
+
+  /// No description provided for @kimchiFxDeltaTuningInvalidFields.
+  ///
+  /// In ko, this message translates to:
+  /// **'입력값을 확인해 주세요.'**
+  String get kimchiFxDeltaTuningInvalidFields;
+
   /// No description provided for @kimchiFxDeltaTuningSaved.
   ///
   /// In ko, this message translates to:
@@ -1287,6 +1353,24 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'저장에 실패했습니다.'**
   String get kimchiFxDeltaTuningSaveFailed;
+
+  /// No description provided for @kimchiFxDeltaPreviewTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'보정 곡선 미리보기 (USD/KRW 1,300~1,600)'**
+  String get kimchiFxDeltaPreviewTitle;
+
+  /// No description provided for @kimchiFxDeltaPreviewFx.
+  ///
+  /// In ko, this message translates to:
+  /// **'환율 · {fx}원'**
+  String kimchiFxDeltaPreviewFx(String fx);
+
+  /// No description provided for @kimchiFxDeltaPreviewDelta.
+  ///
+  /// In ko, this message translates to:
+  /// **'김프 Δ · {delta} pp'**
+  String kimchiFxDeltaPreviewDelta(String delta);
 }
 
 class _AppLocalizationsDelegate

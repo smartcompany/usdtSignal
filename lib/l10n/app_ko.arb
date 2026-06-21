@@ -2,6 +2,20 @@
   "usdt": "테더",
   "exchangeRate": "환율",
   "gimchiPremiem": "김치 프리미엄",
+  "chartTooltipBuyRecommend": "매수추천: {price}({premium}%)",
+  "@chartTooltipBuyRecommend": {
+    "placeholders": {
+      "price": { "type": "String" },
+      "premium": { "type": "String" }
+    }
+  },
+  "chartTooltipSellRecommend": "매도추천: {price}({premium}%)",
+  "@chartTooltipSellRecommend": {
+    "placeholders": {
+      "price": { "type": "String" },
+      "premium": { "type": "String" }
+    }
+  },
   "xrpFundingRateTitle": "XRP 펀딩피(Y)",
   "fundingRateInterval": "({hours}h)",
   "@fundingRateInterval": {
@@ -75,6 +89,8 @@
   "kimchiPremiumPercent": "김치 프리미엄(%)",
   "resetChart": "차트 리셋",
   "backToPreviousChart": "차트 이전",
+  "zoomIn": "확대",
+  "zoomOut": "축소",
   "kimchiPremium": "김치 프리미엄",
   "aiBuySell": "AI 매수/매도",
   "kimchiPremiumBuySell": "김프 매수/매도",
@@ -257,12 +273,28 @@
   "kimchiFxDeltaTuningFxReference": "기준 환율 (fx_reference)",
   "kimchiFxDeltaTuningKPerFxPercent": "k_pp_per_fx_percent",
   "kimchiFxDeltaTuningBiasPp": "bias_pp",
+  "kimchiFxDeltaTuningHighFxOnset": "고환율 2차 시작 (₩)",
+  "kimchiFxDeltaTuningHighFxOnsetHint": "비우면 선형만",
+  "kimchiFxDeltaTuningKHiFx2": "k_hi (고환율 2차, pp/%²)",
+  "kimchiFxDeltaTuningKHiFx2Hint": "0이면 2차 가속 없음",
   "kimchiFxDeltaTuningClampMin": "clamp_min (비우면 없음)",
   "kimchiFxDeltaTuningClampMax": "clamp_max (비우면 없음)",
   "kimchiFxDeltaTuningDeltaPp": "Δ(pp)",
   "kimchiFxDeltaTuningApply": "적용",
   "kimchiFxDeltaTuningReset": "서버 기본값으로",
   "kimchiFxDeltaTuningNoPayload": "서버 델타 JSON을 불러오지 못했습니다. 네트워크 후 다시 시도하세요.",
+  "kimchiFxDeltaPayloadInvalid": "서버 델타 JSON 형식이 올바르지 않습니다.",
+  "kimchiFxDeltaLoadFailed": "서버 델타를 불러오지 못했습니다.",
+  "kimchiFxDeltaTuningInvalidFields": "입력값을 확인해 주세요.",
   "kimchiFxDeltaTuningSaved": "저장했습니다.",
-  "kimchiFxDeltaTuningSaveFailed": "저장에 실패했습니다."
+  "kimchiFxDeltaTuningSaveFailed": "저장에 실패했습니다.",
+  "kimchiFxDeltaPreviewTitle": "보정 곡선 미리보기 (USD/KRW 1,300~1,600)",
+  "kimchiFxDeltaPreviewFx": "환율 · {fx}원",
+  "@kimchiFxDeltaPreviewFx": {
+    "placeholders": { "fx": { "type": "String" } }
+  },
+  "kimchiFxDeltaPreviewDelta": "김프 Δ · {delta} pp",
+  "@kimchiFxDeltaPreviewDelta": {
+    "placeholders": { "delta": { "type": "String" } }
+  }
 }

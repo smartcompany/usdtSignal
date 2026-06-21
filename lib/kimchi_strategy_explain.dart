@@ -81,7 +81,21 @@ Widget buildKimchiStrategyExplanationContent({
   if (fx != null && fx > 0) {
     final locale = Localizations.localeOf(context).toLanguageTag();
     final nf = NumberFormat('#,##0.##', locale);
-    final d = KimchiFxDeltaStore.instance.deltaForFx(fx);
+    final d = KimchiFxDeltaStore.instance.deltaForFxWhenEnabled(fx);
+    if (d == null) {
+      children.add(
+        Text(
+          l10n.kimchiFxDeltaLoadFailed,
+          style: bodyStyle.copyWith(
+            color: Theme.of(context).colorScheme.error,
+          ),
+        ),
+      );
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      );
+    }
     final buyA = buyBase - d;
     final sellA = sellBase - d;
     children.addAll([

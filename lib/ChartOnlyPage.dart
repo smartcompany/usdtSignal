@@ -7,6 +7,7 @@ import 'package:usdt_signal/widgets.dart';
 import 'package:usdt_signal/l10n/app_localizations.dart';
 import 'api_service.dart';
 import 'kimchi_fx_delta.dart';
+import 'kimchi_chart_tooltip.dart';
 import 'utils.dart';
 import 'simulation_model.dart';
 import 'dialogs/liquid_glass_dialog.dart';
@@ -22,11 +23,7 @@ class ChartOnlyPage extends StatefulWidget {
   final Map<DateTime, Map<String, double>>? premiumTrends; // 김치 프리미엄 트렌드 데이터
 
   // AI/김프 매매 체크박스 초기값을 받을 수 있도록 파라미터 추가
-  final bool initialShowAITrading;
   final bool initialShowGimchiTrading;
-
-  /// 시간 봉 등 AI 오버레이가 없는 모드에서 «AI 매수/매도» 체크박스를 숨김.
-  final bool showAiTradingOption;
 
   /// 시간 기준 차트일 때 X축에 년도 없이 시간 표시 (`M/d HH:mm`).
   final bool hourlyGranularity;
@@ -47,9 +44,7 @@ class ChartOnlyPage extends StatefulWidget {
     required this.kimchiMax,
     required this.strategyList,
     this.premiumTrends,
-    this.initialShowAITrading = false,
     this.initialShowGimchiTrading = false,
-    this.showAiTradingOption = true,
     this.hourlyGranularity = false,
   });
 
@@ -57,9 +52,7 @@ class ChartOnlyPage extends StatefulWidget {
   ChartOnlyPage.fromModel(
     ChartOnlyPageModel model, {
     Key? key,
-    this.initialShowAITrading = false,
     this.initialShowGimchiTrading = false,
-    this.showAiTradingOption = true,
     this.hourlyGranularity = false,
   }) : exchangeRates = model.exchangeRates,
        kimchiPremium = model.kimchiPremium,
@@ -80,7 +73,6 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
   static const double _panelPadH = 16;
 
   bool showKimchiPremium = true;
-  bool showAITrading = false;
   bool showGimchiTrading = false;
   bool showExchangeRate = true;
   bool showKimchiPlotBands = false;
@@ -91,6 +83,7 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
     enablePinching: true,
     enablePanning: true,
     enableDoubleTapZooming: true,
+    enableMouseWheelZooming: true,
     zoomMode: ZoomMode.xy,
   );
 
@@ -117,12 +110,10 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
     _syncPrimaryXAxisZoomTemplate();
 
     // 초기 체크박스 상태를 위젯 파라미터로부터 세팅
-    showAITrading =
-        widget.showAiTradingOption && widget.initialShowAITrading;
     showGimchiTrading = widget.initialShowGimchiTrading;
 
     // 체크박스에 따라 필요한 동작 자동 실행
-    if (showAITrading || showGimchiTrading) {
+    if (showGimchiTrading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _loadTradeSimulationMarkers();
       });
@@ -140,35 +131,20 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
   Future<void> _loadTradeSimulationMarkers() async {
     final cap = await SimulationCondition.instance.getInitialCapitalKrw();
     if (!mounted) return;
-    if (showAITrading) {
-      setState(() {
-        showGimchiTrading = false;
-        showKimchiPremium = false;
-        showExchangeRate = false;
-        aiTradeResults = SimulationModel.simulateResults(
-          widget.exchangeRates,
-          widget.strategyList,
-          widget.usdtMap,
-          initialKRW: cap,
-        );
-      });
-      _autoZoomToAITrades();
-    } else if (showGimchiTrading) {
-      await KimchiFxDeltaStore.instance.ensureLoaded(ApiService.shared);
-      setState(() {
-        showAITrading = false;
-        showKimchiPremium = false;
-        showExchangeRate = false;
-        aiTradeResults = SimulationModel.gimchiSimulateResults(
-          widget.exchangeRates,
-          widget.strategyList,
-          widget.usdtMap,
-          widget.premiumTrends,
-          initialKRW: cap,
-        );
-      });
-      _autoZoomToAITrades();
-    }
+    if (!showGimchiTrading) return;
+    await KimchiFxDeltaStore.instance.ensureLoaded(ApiService.shared);
+    setState(() {
+      showKimchiPremium = false;
+      showExchangeRate = false;
+      aiTradeResults = SimulationModel.gimchiSimulateResults(
+        widget.exchangeRates,
+        widget.strategyList,
+        widget.usdtMap,
+        widget.premiumTrends,
+        initialKRW: cap,
+      );
+    });
+    _autoZoomToAITrades();
   }
 
   @override
@@ -328,9 +304,7 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
             decoration: BoxDecoration(
               color: cs.surfaceContainerHigh,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: cs.outline.withValues(alpha: 0.4),
-              ),
+              border: Border.all(color: cs.outline.withValues(alpha: 0.4)),
             ),
             child: IconButton(
               icon: Icon(Icons.refresh, color: cs.primary),
@@ -351,9 +325,7 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
             decoration: BoxDecoration(
               color: cs.surfaceContainerHigh,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: cs.outline.withValues(alpha: 0.4),
-              ),
+              border: Border.all(color: cs.outline.withValues(alpha: 0.4)),
             ),
             child: IconButton(
               icon: Icon(Icons.close, color: cs.primary),
@@ -364,7 +336,62 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
             ),
           ),
         ),
+        // 줌 인/아웃 버튼 (플롯 영역 하단 중앙, X축/레전드 위에 떠 있도록)
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 60,
+          child: Center(child: _buildZoomControls(cs, l10n)),
+        ),
       ],
+    );
+  }
+
+  /// 차트 위에 떠 있는 줌 인/아웃 컨트롤.
+  Widget _buildZoomControls(ColorScheme cs, AppLocalizations l10n) {
+    return Container(
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHigh.withValues(alpha: 0.82),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: cs.outline.withValues(alpha: 0.4)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.all(6),
+            constraints: const BoxConstraints(),
+            icon: Icon(Icons.remove, color: cs.primary, size: 20),
+            tooltip: l10n.zoomOut,
+            onPressed: () {
+              _zoomPanBehavior.zoomOut();
+            },
+          ),
+          Container(
+            width: 1,
+            height: 20,
+            color: cs.outline.withValues(alpha: 0.3),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.all(6),
+            constraints: const BoxConstraints(),
+            icon: Icon(Icons.add, color: cs.primary, size: 20),
+            tooltip: l10n.zoomIn,
+            onPressed: () {
+              _zoomPanBehavior.zoomIn();
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -373,15 +400,6 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
     AppLocalizations l10n,
     List<PlotBand> kimchiPlotBands,
   ) {
-    // 다음 매수/매도 시점 가져오기
-    final simulationType = () {
-      if (showAITrading) return SimulationType.ai;
-      if (showGimchiTrading) return SimulationType.kimchi;
-
-      return SimulationType.ai;
-    }();
-
-    // 매수/매도 포인트 계산
     ({double price, double kimchiPremium})? buyPoint;
     ({double price, double kimchiPremium})? sellPoint;
 
@@ -389,83 +407,47 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
         (widget.exchangeRates.isNotEmpty)
             ? widget.exchangeRates.last.value
             : 0.0;
-    /// 매수·매도 마커 툴팁에 넣을 USD/KRW (김프 선과 동일 시점)
+
     double markerExchangeRate = currentExchangeRate;
 
-    if (showAITrading || showGimchiTrading) {
-      if (simulationType == SimulationType.ai) {
-        if (widget.strategyList.isNotEmpty) {
-          final latestStrategy = widget.strategyList.last;
-          final buyPrice =
-              (latestStrategy['buy_price'] as num?)?.toDouble() ?? 0;
-          final sellPrice =
-              (latestStrategy['sell_price'] as num?)?.toDouble() ?? 0;
-
-          if (buyPrice > 0) {
-            final kp =
-                currentExchangeRate != 0
-                    ? ((buyPrice - currentExchangeRate) /
-                        currentExchangeRate *
-                        100)
-                    : 0.0;
-            buyPoint = (price: buyPrice, kimchiPremium: kp);
-          }
-          if (sellPrice > 0) {
-            final kp =
-                currentExchangeRate != 0
-                    ? ((sellPrice - currentExchangeRate) /
-                        currentExchangeRate *
-                        100)
-                    : 0.0;
-            sellPoint = (price: sellPrice, kimchiPremium: kp);
-          }
-        }
-      } else if (simulationType == SimulationType.kimchi) {
-        if (widget.exchangeRates.isNotEmpty &&
-            widget.usdtChartData.isNotEmpty) {
-          final exchangeRateValue = widget.exchangeRates.last.value;
-          if (exchangeRateValue > 0) {
-            // 추세 기반 전략 제거 - 항상 기본 임계값 사용
-            final (
-              buyThreshold,
-              sellThreshold,
-            ) = SimulationModel.getKimchiThresholds(
-              trendData: null,
-              exchangeRates: widget.exchangeRates,
-              targetDate: widget.usdtChartData.last.time,
-            );
-
-            markerExchangeRate = exchangeRateValue;
-            final prices = SimulationModel.getKimchiTradingPrices(
-              exchangeRateValue: exchangeRateValue,
-              premiumTrends: widget.premiumTrends,
-              targetDate: widget.usdtChartData.last.time,
-              exchangeRates: widget.exchangeRates,
-            );
-            final dAdj = KimchiFxDeltaStore.instance.deltaForFxWhenEnabled(
-              exchangeRateValue,
-            );
-
-            if (prices.buyPrice > 0) {
-              buyPoint = (
-                price: prices.buyPrice,
-                kimchiPremium: buyThreshold - dAdj,
+    if (showGimchiTrading) {
+      if (widget.exchangeRates.isNotEmpty && widget.usdtChartData.isNotEmpty) {
+        final exchangeRateValue = widget.exchangeRates.last.value;
+        if (exchangeRateValue > 0) {
+          final (buyThreshold, sellThreshold) =
+              SimulationModel.getKimchiThresholds(
+                trendData: null,
+                exchangeRates: widget.exchangeRates,
+                targetDate: widget.usdtChartData.last.time,
               );
-            }
-            if (prices.sellPrice > 0) {
-              sellPoint = (
-                price: prices.sellPrice,
-                kimchiPremium: sellThreshold - dAdj,
-              );
-            }
+
+          markerExchangeRate = exchangeRateValue;
+          final prices = SimulationModel.getKimchiTradingPrices(
+            exchangeRateValue: exchangeRateValue,
+            premiumTrends: widget.premiumTrends,
+            targetDate: widget.usdtChartData.last.time,
+            exchangeRates: widget.exchangeRates,
+          );
+          final dAdj = KimchiFxDeltaStore.instance.deltaForFxWhenEnabled(
+            exchangeRateValue,
+          );
+
+          if (dAdj != null && prices.buyPrice > 0) {
+            buyPoint = (
+              price: prices.buyPrice,
+              kimchiPremium: buyThreshold - dAdj,
+            );
+          }
+          if (dAdj != null && prices.sellPrice > 0) {
+            sellPoint = (
+              price: prices.sellPrice,
+              kimchiPremium: sellThreshold - dAdj,
+            );
           }
         }
       }
     } else {
-      // 아무것도 체크 안되어 있을 때는 기존 로직대로 하나만 표시 (AI 기준)
       final nextPoint = SimulationModel.getNextTradingPoint(
-        simulationType: SimulationType.ai,
-        latestStrategy: widget.strategyList.last,
         exchangeRates: widget.exchangeRates,
         usdtChartData: widget.usdtChartData,
         premiumTrends: widget.premiumTrends,
@@ -486,6 +468,8 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
         }
       }
     }
+
+    const simulationType = SimulationType.kimchi;
 
     final cs = Theme.of(context).colorScheme;
     final chartSurface = cs.surfaceContainerHighest;
@@ -508,7 +492,7 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
       primaryYAxis: _buildPrimaryYAxis(cs),
       axes: _buildAxes(cs),
       zoomPanBehavior: _zoomPanBehavior,
-      tooltipBehavior: TooltipBehavior(enable: true),
+      tooltipBehavior: TooltipBehavior(enable: true, duration: 20000),
       annotations: [
         if (buyPoint != null)
           CartesianChartAnnotation(
@@ -550,10 +534,7 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
           ),
         if (widget.usdtChartData.isNotEmpty)
           CartesianChartAnnotation(
-            widget: const BlinkingDot(
-              color: Color(0xFF7EB8FF),
-              size: 8,
-            ),
+            widget: const BlinkingDot(color: Color(0xFF7EB8FF), size: 8),
             coordinateUnit: CoordinateUnit.point,
             x: widget.usdtChartData.last.time,
             y: widget.usdtChartData.last.close,
@@ -621,10 +602,7 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
           axisLine: AxisLine(color: axisLineColor, width: 1),
           majorGridLines: MajorGridLines(color: gridColor, width: 1),
           labelStyle: TextStyle(color: axisLabelColor, fontSize: 11),
-          majorTickLines: MajorTickLines(
-            size: 2,
-            color: cs.error,
-          ),
+          majorTickLines: MajorTickLines(size: 2, color: cs.error),
           rangePadding: ChartRangePadding.round,
           minimum: widget.kimchiMin - 0.5,
           maximum: widget.kimchiMax + 0.5,
@@ -637,7 +615,7 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
     List<CartesianSeries> series = [];
 
     // USDT 차트 (라인 또는 캔들)
-    if (showAITrading || showGimchiTrading) {
+    if (showGimchiTrading) {
       series.add(_buildUSDTCandleSeries(l10n));
     } else {
       series.add(_buildUSDTLineSeries(l10n));
@@ -653,9 +631,8 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
       series.add(_buildKimchiPremiumSeries(l10n));
     }
 
-    // AI 매수/매도 포인트
-    if ((showAITrading || showGimchiTrading) && aiTradeResults.isNotEmpty) {
-      series.addAll(_buildAITradingSeries(l10n));
+    if (showGimchiTrading && aiTradeResults.isNotEmpty) {
+      series.addAll(_buildKimchiTradingSeries(l10n));
     }
 
     return series;
@@ -722,11 +699,10 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
     );
   }
 
-  // AI 매수/매도 시리즈들
-  List<ScatterSeries> _buildAITradingSeries(AppLocalizations l10n) {
+  List<ScatterSeries> _buildKimchiTradingSeries(AppLocalizations l10n) {
     return [
       ScatterSeries<dynamic, DateTime>(
-        name: showAITrading ? l10n.aiBuy : l10n.kimchiPremiumBuy,
+        name: l10n.kimchiPremiumBuy,
         dataSource: aiTradeResults.toList(),
         xValueMapper: (r, _) => r.buyDate,
         yValueMapper: (r, _) => r.buyPrice,
@@ -739,7 +715,7 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
         ),
       ),
       ScatterSeries<dynamic, DateTime>(
-        name: showAITrading ? l10n.aiSell : l10n.kimchiPremiumSell,
+        name: l10n.kimchiPremiumSell,
         dataSource: aiTradeResults.where((r) => r.sellDate != null).toList(),
         xValueMapper: (r, _) => r.sellDate!,
         yValueMapper: (r, _) => r.sellPrice!,
@@ -790,12 +766,30 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
       '#,##0.#',
       Localizations.localeOf(context).toLanguageTag(),
     );
+    final localeTag = Localizations.localeOf(context).toLanguageTag();
     final fxLine =
         exchangeRate > 0
             ? '\n${l10n.exchangeRate}: ${nfFx.format(exchangeRate)}'
             : '';
     String newText =
         '${args.text}$fxLine\n${l10n.gimchiPremiem}: ${kimchiPremiumValue.toStringAsFixed(2)}%';
+
+    final isUsdtSeries =
+        args.header == l10n.usdt ||
+        args.header == l10n.aiBuy ||
+        args.header == l10n.aiSell ||
+        args.header == l10n.kimchiPremiumBuy ||
+        args.header == l10n.kimchiPremiumSell;
+    if (isUsdtSeries && exchangeRate > 0) {
+      final recLines = kimchiTradeRecommendLinesForTooltip(
+        l10n: l10n,
+        localeTag: localeTag,
+        exchangeRate: exchangeRate,
+      );
+      if (recLines != null) {
+        newText += '\n$recLines';
+      }
+    }
 
     // '환율' 시리즈의 툴팁에만 변동률 추가
     if (args.header == l10n.exchangeRate && pointIndex > 0) {
@@ -813,8 +807,9 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
   }
 
   void _autoZoomToAITrades() {
-    bool show = showAITrading || showGimchiTrading;
-    if (show && aiTradeResults.isNotEmpty && widget.usdtChartData.isNotEmpty) {
+    if (showGimchiTrading &&
+        aiTradeResults.isNotEmpty &&
+        widget.usdtChartData.isNotEmpty) {
       // AI 매수/매도 날짜 리스트
       final allDates = [
         ...aiTradeResults.where((r) => r.buyDate != null).map((r) => r.buyDate),
@@ -892,12 +887,7 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              _panelPadH,
-              12,
-              _panelPadH,
-              12,
-            ),
+            padding: const EdgeInsets.fromLTRB(_panelPadH, 12, _panelPadH, 12),
             child: Wrap(
               alignment: WrapAlignment.start,
               spacing: 16,
@@ -917,38 +907,6 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
                   onChanged:
                       (val) => setState(() => showKimchiPremium = val ?? true),
                 ),
-                if (widget.showAiTradingOption)
-                  CheckBoxItem(
-                    value: showAITrading,
-                    label: l10n.aiBuySell,
-                    color: cs.primary,
-                    onChanged: (val) async {
-                      final on = val ?? false;
-                      if (on) {
-                        final cap =
-                            await SimulationCondition.instance.getInitialCapitalKrw();
-                        if (!mounted) return;
-                        setState(() {
-                          showAITrading = true;
-                          showGimchiTrading = false;
-                          showKimchiPremium = false;
-                          showExchangeRate = false;
-                          aiTradeResults = SimulationModel.simulateResults(
-                            widget.exchangeRates,
-                            widget.strategyList,
-                            widget.usdtMap,
-                            initialKRW: cap,
-                          );
-                        });
-                        _autoZoomToAITrades();
-                      } else {
-                        setState(() {
-                          showAITrading = false;
-                          aiTradeResults = [];
-                        });
-                      }
-                    },
-                  ),
                 CheckBoxItem(
                   value: showGimchiTrading,
                   label: l10n.kimchiPremiumBuySell,
@@ -959,13 +917,13 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
                     });
                     if (showGimchiTrading) {
                       setState(() {
-                        showAITrading = false; // 김프 매매가 켜지면 AI 매매는 꺼짐
                         showKimchiPremium = false;
-                        showExchangeRate = false; // 김프 매매가 켜지면 환율은 꺼짐
+                        showExchangeRate = false;
                       });
 
                       final cap =
-                          await SimulationCondition.instance.getInitialCapitalKrw();
+                          await SimulationCondition.instance
+                              .getInitialCapitalKrw();
                       if (!mounted) return;
                       await KimchiFxDeltaStore.instance.ensureLoaded(
                         ApiService.shared,
@@ -974,7 +932,7 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
                         widget.exchangeRates,
                         widget.strategyList,
                         widget.usdtMap,
-                        null, // premiumTrends는 서버에서 받아와야 함
+                        widget.premiumTrends,
                         initialKRW: cap,
                       );
                       setState(() {

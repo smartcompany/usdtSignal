@@ -94,17 +94,13 @@ class _StrategyHistoryPageState extends State<StrategyHistoryPage> {
                 child: Row(
                   children: [
                     Icon(
-                      widget.simulationType == SimulationType.kimchi
-                          ? Icons.trending_up
-                          : Icons.psychology,
+                      Icons.trending_up,
                       color: cs.primary,
                       size: 22,
                     ),
                     const SizedBox(width: 10),
                     Text(
-                      widget.simulationType == SimulationType.kimchi
-                          ? l10n(context).kimchiStrategyHistory
-                          : l10n(context).aiStrategyHistory,
+                      l10n(context).kimchiStrategyHistory,
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -200,12 +196,10 @@ class _StrategyHistoryPageState extends State<StrategyHistoryPage> {
   }
 
   Widget _buildStrategyList() {
-    if (widget.simulationType == SimulationType.kimchi) {
-      // 김프 매매: usdtMap의 날짜 기준으로 정렬
-      final sortedDates =
-          widget.usdtMap.keys.toList()..sort((a, b) => b.compareTo(a)); // 최신순
+    final sortedDates =
+        widget.usdtMap.keys.toList()..sort((a, b) => b.compareTo(a));
 
-      return ListView.builder(
+    return ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: sortedDates.length,
         itemBuilder: (context, index) {
@@ -300,111 +294,6 @@ class _StrategyHistoryPageState extends State<StrategyHistoryPage> {
           );
         },
       );
-    } else {
-      // AI 매매: strategyList의 날짜 기준으로 정렬
-      final sortedStrategies = List<StrategyMap>.from(strategies!)
-        ..sort((a, b) {
-          final dateA = DateTime.parse(a['analysis_date']);
-          final dateB = DateTime.parse(b['analysis_date']);
-          return dateB.compareTo(dateA); // 최신순
-        });
-
-      return ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: sortedStrategies.length,
-        itemBuilder: (context, index) {
-          final strategy = sortedStrategies[index];
-          final date = DateTime.parse(strategy['analysis_date']);
-
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Theme.of(context)
-                          .colorScheme
-                          .surfaceContainerHigh
-                          .withValues(alpha: 0.95),
-                      Theme.of(context)
-                          .colorScheme
-                          .surfaceContainerHighest
-                          .withValues(alpha: 0.88),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .outline
-                        .withValues(alpha: 0.4),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.12),
-                      blurRadius: 15,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: InkWell(
-                  onTap: () {
-                    _showStrategyDetail(context, strategy, date);
-                  },
-                  borderRadius: BorderRadius.circular(20),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.psychology,
-                              color: Theme.of(context).colorScheme.primary,
-                              size: 24,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                '${DateFormat('yyyy/MM/dd').format(date)} ${l10n(context).strategy}',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).colorScheme.onSurface,
-                                ),
-                              ),
-                            ),
-                            Icon(
-                              Icons.arrow_forward_ios,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                              size: 16,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        _buildAIStrategyInfo(context, strategy),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-      );
-    }
   }
 
   Widget _buildKimchiStrategyInfo(BuildContext context, DateTime date) {
@@ -621,11 +510,7 @@ class _StrategyHistoryPageState extends State<StrategyHistoryPage> {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      if (widget.simulationType == SimulationType.kimchi) ...[
-                        _buildKimchiStrategyDetail(context, date),
-                      ] else ...[
-                        _buildAIStrategyDetail(context, strategy),
-                      ],
+                      _buildKimchiStrategyDetail(context, date),
                       const SizedBox(height: 20),
                       SizedBox(
                         width: double.infinity,
