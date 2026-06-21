@@ -110,38 +110,79 @@ class SimulationCondition {
   bool get simulationCompoundInterest => _simulationCompoundInterest;
 
   /// `true`: USD/KRW 구간별 델타(`/api/kimchi-fx-delta`)로 김프 임계 매칭 보정.
-  bool _kimchiFxDeltaCorrectionEnabled = false;
+  bool _kimchiFxDeltaCorrectionEnabled = true;
   bool get kimchiFxDeltaCorrectionEnabled => _kimchiFxDeltaCorrectionEnabled;
 
   KimchiFxDeltaClientTuning? _kimchiFxDeltaClientTuning;
   KimchiFxDeltaClientTuning? get kimchiFxDeltaClientTuning =>
       _kimchiFxDeltaClientTuning;
 
+  /// 앱 시작 시 호출: 최초 설치 기본값 기록 후 prefs 반영.
+  Future<void> initialize() async {
+    await ensureFreshInstallKimchiDefaults();
+    await _loadFromPrefs();
+  }
+
   void load() {
-    SharedPreferences.getInstance().then((prefs) {
-      instance._kimchiBuyThreshold =
-          prefs.getDouble('kimchiBuyThreshold') ?? 0;
-      instance._kimchiSellThreshold =
-          prefs.getDouble('kimchiSellThreshold') ?? 1;
-      final startDateRaw = prefs.getString('kimchiStartDate');
-      final endDateRaw = prefs.getString('kimchiEndDate');
-      instance._kimchiStartDate =
-          startDateRaw != null ? DateTime.tryParse(startDateRaw) : null;
-      instance._kimchiEndDate =
-          endDateRaw != null ? DateTime.tryParse(endDateRaw) : null;
-      instance._kimchiFxBuyMax =
-          prefs.getDouble('kimchiFxBuyMax') ??
-          prefs.getDouble('kimchiFxNoBuyAbove') ??
-          defaultKimchiFxBuyMax;
-      instance._kimchiFxSellMin =
-          prefs.getDouble('kimchiFxSellMin') ?? defaultKimchiFxSellMin;
-      instance._simulationInitialKrw = _readSimulationInitialKrwSync(prefs);
-      instance._simulationCompoundInterest =
-          _readSimulationCompoundInterestSync(prefs);
-      instance._kimchiFxDeltaCorrectionEnabled =
-          _readKimchiFxDeltaCorrectionSync(prefs);
-      SimulationCondition.readKimchiFxDeltaClientTuningSync(prefs);
-    });
+    initialize();
+  }
+
+  Future<void> _loadFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    _kimchiBuyThreshold = prefs.getDouble('kimchiBuyThreshold') ?? 0;
+    _kimchiSellThreshold = prefs.getDouble('kimchiSellThreshold') ?? 1;
+    final startDateRaw = prefs.getString('kimchiStartDate');
+    final endDateRaw = prefs.getString('kimchiEndDate');
+    _kimchiStartDate =
+        startDateRaw != null ? DateTime.tryParse(startDateRaw) : null;
+    _kimchiEndDate =
+        endDateRaw != null ? DateTime.tryParse(endDateRaw) : null;
+    _kimchiFxBuyMax =
+        prefs.getDouble('kimchiFxBuyMax') ??
+        prefs.getDouble('kimchiFxNoBuyAbove') ??
+        defaultKimchiFxBuyMax;
+    _kimchiFxSellMin =
+        prefs.getDouble('kimchiFxSellMin') ?? defaultKimchiFxSellMin;
+    _simulationInitialKrw = _readSimulationInitialKrwSync(prefs);
+    _simulationCompoundInterest = _readSimulationCompoundInterestSync(prefs);
+    _kimchiFxDeltaCorrectionEnabled = _readKimchiFxDeltaCorrectionSync(prefs);
+    SimulationCondition.readKimchiFxDeltaClientTuningSync(prefs);
+  }
+
+  /// 최초 설치 시 김프 전략 기본값(매수 0%, 매도 1%, 환율 보정 ON, FX 한도, 전체 일정).
+  static Future<void> ensureFreshInstallKimchiDefaults() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('kimchiStrategyDefaultsInstalled') == true) return;
+
+    final hasExisting =
+        prefs.containsKey('kimchiBuyThreshold') ||
+        prefs.containsKey('kimchiSellThreshold') ||
+        prefs.containsKey('kimchiFxDeltaCorrection') ||
+        prefs.containsKey('kimchiFxBuyMax') ||
+        prefs.containsKey('kimchiFxSellMin') ||
+        prefs.containsKey('kimchiStartDate') ||
+        prefs.containsKey('kimchiEndDate');
+    if (hasExisting) {
+      await prefs.setBool('kimchiStrategyDefaultsInstalled', true);
+      return;
+    }
+
+    await prefs.setDouble('kimchiBuyThreshold', 0);
+    await prefs.setDouble('kimchiSellThreshold', 1);
+    await prefs.setBool('kimchiFxDeltaCorrection', true);
+    await prefs.setDouble('kimchiFxBuyMax', defaultKimchiFxBuyMax);
+    await prefs.setDouble('kimchiFxSellMin', defaultKimchiFxSellMin);
+    await prefs.setBool('kimchiStrategyDefaultsInstalled', true);
+
+    try {
+      await ApiService.shared.saveAndSyncUserData({
+        UserDataKey.gimchiBuyPercent: 0,
+        UserDataKey.gimchiSellPercent: 1,
+        UserDataKey.kimchiFxDeltaCorrection: true,
+        UserDataKey.gimchiFxBuyMax: defaultKimchiFxBuyMax,
+        UserDataKey.gimchiFxSellMin: defaultKimchiFxSellMin,
+      });
+    } catch (_) {}
   }
 
   static void readKimchiFxDeltaClientTuningSync(SharedPreferences prefs) {
@@ -173,7 +214,7 @@ class SimulationCondition {
         if (v is int) return v != 0;
       } catch (_) {}
     }
-    return false;
+    return true;
   }
 
   static bool _readSimulationCompoundInterestSync(SharedPreferences prefs) {

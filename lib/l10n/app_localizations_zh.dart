@@ -51,7 +51,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cancel => '取消';
 
   @override
-  String get changeStrategy => '更改泡菜溢价策略';
+  String get changeStrategy => '泡菜溢价策略设置';
 
   @override
   String get close => '关闭';
@@ -162,7 +162,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get runSimulation => '运行模拟';
 
   @override
-  String get seeStrategy => '查看策略';
+  String get seeStrategy => '策略设置';
 
   @override
   String get aiTradingSimulation => 'AI交易模拟（以100万韩元为基准）';

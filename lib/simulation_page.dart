@@ -1055,6 +1055,19 @@ class _SimulationPageState extends State<SimulationPage>
     );
   }
 
+  Future<void> _openKimchiStrategySettings() async {
+    final sortedDates = widget.usdtMap.keys.toList()..sort();
+    final changed = await SimulationPage.showKimchiStrategyUpdatePopup(
+      context,
+      defaultStartDate: sortedDates.isNotEmpty ? sortedDates.first : null,
+      defaultEndDate: sortedDates.isNotEmpty ? sortedDates.last : null,
+      availableDates: sortedDates,
+      hourlyDateLabels: widget.hourlyGranularity,
+    );
+    if (!mounted || !changed) return;
+    await runSimulation();
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -1065,6 +1078,16 @@ class _SimulationPageState extends State<SimulationPage>
           l10n(context).gimchBaseTrade,
           style: _TitleStyles.appBarTitle(context),
         ),
+        actions: [
+          TextButton.icon(
+            onPressed: _openKimchiStrategySettings,
+            icon: Icon(Icons.tune, size: 18, color: cs.primary),
+            label: Text(
+              l10n(context).seeStrategy,
+              style: TextStyle(color: cs.primary, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
       ),
       body: Container(
         decoration: BoxDecoration(

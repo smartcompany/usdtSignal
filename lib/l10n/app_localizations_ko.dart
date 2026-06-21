@@ -51,7 +51,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get cancel => '취소';
 
   @override
-  String get changeStrategy => '김프 전략 변경';
+  String get changeStrategy => '김프 전략 설정';
 
   @override
   String get close => '닫기';
@@ -163,7 +163,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get runSimulation => '수익률 시뮬레이션';
 
   @override
-  String get seeStrategy => '전략 보기';
+  String get seeStrategy => '전략 설정';
 
   @override
   String get aiTradingSimulation => 'AI 매매 시뮬레이션 (100 만원 기준)';

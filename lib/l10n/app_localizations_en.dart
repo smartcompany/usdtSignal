@@ -51,7 +51,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cancel => 'Cancel';
 
   @override
-  String get changeStrategy => 'Change strategy';
+  String get changeStrategy => 'Kimchi strategy settings';
 
   @override
   String get close => 'Close';
@@ -163,7 +163,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get runSimulation => 'Run simulation';
 
   @override
-  String get seeStrategy => 'Strategy';
+  String get seeStrategy => 'Strategy settings';
 
   @override
   String get aiTradingSimulation => 'AI Simulated Trade (₩1M)';

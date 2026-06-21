@@ -319,7 +319,7 @@ class _MyHomePageState extends State<MyHomePage>
     super.initState();
 
     WidgetsBinding.instance.addObserver(this);
-    SimulationCondition.instance.load();
+    SimulationCondition.instance.initialize();
 
     if (!kIsWeb) {
       MobileAds.instance.initialize();
@@ -3019,6 +3019,24 @@ class _MyHomePageState extends State<MyHomePage>
     );
   }
 
+  Future<void> _openKimchiStrategySettings() async {
+    final sortedDates = usdtMap.keys.toList()..sort();
+    final changed = await SimulationPage.showKimchiStrategyUpdatePopup(
+      context,
+      defaultStartDate: sortedDates.isNotEmpty ? sortedDates.first : null,
+      defaultEndDate: sortedDates.isNotEmpty ? sortedDates.last : null,
+      availableDates: sortedDates,
+      hourlyDateLabels: _chartGranularity == MainChartGranularity.hourly,
+    );
+    if (!mounted || !changed) return;
+    if (_chartGranularity == MainChartGranularity.daily) {
+      await _reloadDailyYieldsAfterChartRestore();
+    } else {
+      await _recalculateHourlyGimchiYieldOnly();
+    }
+    setState(() {});
+  }
+
   Future<Widget> makeStrategyTab(
     String title,
     buyPrice,
@@ -3115,59 +3133,7 @@ class _MyHomePageState extends State<MyHomePage>
                     minimumSize: const Size(0, 32),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  onPressed: () {
-                    LiquidGlassDialog.show(
-                      context: context,
-                      title: Row(
-                        children: [
-                          Icon(Icons.lightbulb, color: cs.tertiary, size: 24),
-                          const SizedBox(width: 8),
-                          Expanded(child: Text(title)),
-                        ],
-                      ),
-                      content: SingleChildScrollView(
-                        child: Text(
-                          strategy != null &&
-                                  strategy is String &&
-                                  strategy.isNotEmpty
-                              ? strategy
-                              : l10n(context).strategySummaryEmpty,
-                        ),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () async {
-                            Navigator.of(context).pop();
-                            final sortedDates = usdtMap.keys.toList()..sort();
-                            final defaultStartDate =
-                                sortedDates.isNotEmpty
-                                    ? sortedDates.first
-                                    : null;
-                            final defaultEndDate =
-                                sortedDates.isNotEmpty
-                                    ? sortedDates.last
-                                    : null;
-                            await SimulationPage.showKimchiStrategyUpdatePopup(
-                              context,
-                              defaultStartDate: defaultStartDate,
-                              defaultEndDate: defaultEndDate,
-                              availableDates: sortedDates,
-                              hourlyDateLabels:
-                                  _chartGranularity ==
-                                  MainChartGranularity.hourly,
-                            );
-                          },
-                          child: Text(
-                            AppLocalizations.of(context)!.changeStrategy,
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: Text(l10n(context).close),
-                        ),
-                      ],
-                    );
-                  },
+                  onPressed: _openKimchiStrategySettings,
                 ),
               ],
             ),

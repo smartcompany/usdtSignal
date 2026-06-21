@@ -175,7 +175,7 @@ abstract class AppLocalizations {
   /// No description provided for @changeStrategy.
   ///
   /// In ko, this message translates to:
-  /// **'김프 전략 변경'**
+  /// **'김프 전략 설정'**
   String get changeStrategy;
 
   /// No description provided for @close.
@@ -397,7 +397,7 @@ abstract class AppLocalizations {
   /// No description provided for @seeStrategy.
   ///
   /// In ko, this message translates to:
-  /// **'전략 보기'**
+  /// **'전략 설정'**
   String get seeStrategy;
 
   /// No description provided for @aiTradingSimulation.

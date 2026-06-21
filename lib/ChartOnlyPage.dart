@@ -154,6 +154,22 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
     super.dispose();
   }
 
+  Future<void> _openKimchiStrategySettings() async {
+    final sortedDates = widget.usdtMap.keys.toList()..sort();
+    final changed = await SimulationPage.showKimchiStrategyUpdatePopup(
+      context,
+      defaultStartDate: sortedDates.isNotEmpty ? sortedDates.first : null,
+      defaultEndDate: sortedDates.isNotEmpty ? sortedDates.last : null,
+      availableDates: sortedDates,
+      hourlyDateLabels: widget.hourlyGranularity,
+    );
+    if (!mounted || !changed) return;
+    setState(() {});
+    if (showGimchiTrading) {
+      await _loadTradeSimulationMarkers();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -190,6 +206,20 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
           elevation: 0,
           centerTitle: true,
           iconTheme: IconThemeData(color: cs.onSurface, size: 22),
+          actions: [
+            TextButton.icon(
+              onPressed: _openKimchiStrategySettings,
+              icon: Icon(Icons.tune, size: 18, color: cs.primary),
+              label: Text(
+                l10n(context).seeStrategy,
+                style: TextStyle(
+                  color: cs.primary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
           flexibleSpace: ClipRRect(
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
