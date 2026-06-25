@@ -1320,8 +1320,7 @@ class _SimulationPageState extends State<SimulationPage>
 
   String _shareSimulationHeadline(AppLocalizations loc) {
     final appName = loc.usdt_signal;
-    final mode =
-        loc.kimchiSimulatedTradeTitle;
+    final mode = loc.kimchiSimulatedTradeTitle;
     return '$appName · $mode';
   }
 

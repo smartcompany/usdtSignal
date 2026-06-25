@@ -444,12 +444,14 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
       if (widget.exchangeRates.isNotEmpty && widget.usdtChartData.isNotEmpty) {
         final exchangeRateValue = widget.exchangeRates.last.value;
         if (exchangeRateValue > 0) {
-          final (buyThreshold, sellThreshold) =
-              SimulationModel.getKimchiThresholds(
-                trendData: null,
-                exchangeRates: widget.exchangeRates,
-                targetDate: widget.usdtChartData.last.time,
-              );
+          final (
+            buyThreshold,
+            sellThreshold,
+          ) = SimulationModel.getKimchiThresholds(
+            trendData: null,
+            exchangeRates: widget.exchangeRates,
+            targetDate: widget.usdtChartData.last.time,
+          );
 
           markerExchangeRate = exchangeRateValue;
           final prices = SimulationModel.getKimchiTradingPrices(
