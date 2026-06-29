@@ -3196,9 +3196,6 @@ class _MyHomePageState extends State<MyHomePage>
                                   premiumTrends: premiumTrends,
                                   chartOnlyPageModel: chartOnlyPageModel,
                                   settings: settings,
-                                  showViewHistoryButton:
-                                      _chartGranularity !=
-                                      MainChartGranularity.hourly,
                                   hourlyGranularity:
                                       _chartGranularity ==
                                       MainChartGranularity.hourly,

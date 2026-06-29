@@ -14,7 +14,6 @@ import 'package:usdt_signal/kimchi_fx_delta_tuning_dialog.dart';
 import 'package:usdt_signal/kimchi_strategy_explain.dart';
 import 'package:usdt_signal/l10n/app_localizations.dart';
 import 'package:usdt_signal/simulation_model.dart';
-import 'package:usdt_signal/strategy_history_page.dart';
 import 'utils.dart';
 import 'dialogs/liquid_glass_dialog.dart';
 
@@ -245,9 +244,6 @@ class SimulationPage extends StatefulWidget {
   // Settings 데이터
   final Map<String, dynamic>? settings;
 
-  /// 시간봉(메인 시간 기준) 등 전략 히스토리가 의미 없을 때 하단 «View History» 숨김.
-  final bool showViewHistoryButton;
-
   /// 시간 봉 모드: 시뮬·전략 팝업 등 날짜 라벨에 년 대신 시각 포함.
   final bool hourlyGranularity;
 
@@ -260,7 +256,6 @@ class SimulationPage extends StatefulWidget {
     this.premiumTrends,
     this.chartOnlyPageModel,
     this.settings,
-    this.showViewHistoryButton = true,
     this.hourlyGranularity = false,
   });
 
@@ -1287,10 +1282,6 @@ class _SimulationPageState extends State<SimulationPage>
                     ),
                     const SizedBox(height: 12),
                     _buildPerformanceMetrics(context),
-                    if (widget.showViewHistoryButton) ...[
-                      const SizedBox(height: 24),
-                      _buildViewHistoryButton(context),
-                    ],
                     // 하단 SafeArea 고려
                     SizedBox(height: MediaQuery.of(context).padding.bottom),
                   ],
@@ -2526,56 +2517,6 @@ class _SimulationPageState extends State<SimulationPage>
     );
   }
 
-  Widget _buildViewHistoryButton(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton(
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder:
-                (context) => DraggableScrollableSheet(
-                  initialChildSize: 0.9,
-                  minChildSize: 0.5,
-                  maxChildSize: 0.95,
-                  builder:
-                      (context, scrollController) => Container(
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surface,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(20),
-                            topRight: Radius.circular(20),
-                          ),
-                        ),
-                        child: StrategyHistoryPage(
-                          simulationType: widget.simulationType,
-                          usdExchangeRates: widget.usdExchangeRates,
-                          usdtMap: widget.usdtMap,
-                          strategies: widget.strategyList,
-                          premiumTrends: widget.premiumTrends,
-                        ),
-                      ),
-                ),
-          );
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          foregroundColor: Theme.of(context).colorScheme.onPrimary,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          elevation: 0,
-        ),
-        child: Text(
-          l10n(context).viewAllStrategyHistory,
-          style: _ButtonStyles.largeButton(context),
-        ),
-      ),
-    );
-  }
 }
 
 class SimulationYieldData {
