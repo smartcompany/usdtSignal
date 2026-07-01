@@ -426,40 +426,35 @@ class ApiService {
     }
   }
 
-  // 전략 데이터 + 김치 프리미엄 트렌드 데이터
-  Future<Map<String, dynamic>?> fetchStrategyWithKimchiTrends() async {
-    final response = await http.get(
-      Uri.parse('$strategyUrl?includeKimchiTrends=true'),
-    );
+  // 전략 데이터 (레거시 AI 전략 목록, 현재는 비어 있음)
+  Future<Map<String, dynamic>?> fetchStrategyPayload() async {
+    final response = await http.get(Uri.parse(strategyUrl));
     if (response.statusCode == 200) {
       final responseText = utf8.decode(response.bodyBytes);
       try {
         final data = json.decode(responseText);
-
-        // strategies 배열 변환
-        if (data['strategies'] != null) {
-          final strategies =
-              (data['strategies'] as List).map((item) {
-                // Map<String, dynamic>으로 안전하게 변환
-                final Map<String, dynamic> map = {};
-                (item as Map).forEach((key, value) {
-                  final stringKey = key.toString();
-                  map[stringKey] = value is int ? value.toDouble() : value;
-                });
-                return map;
-              }).toList();
-          data['strategies'] = strategies;
+        if (data is Map<String, dynamic>) {
+          if (data['strategies'] != null) {
+            final strategies =
+                (data['strategies'] as List).map((item) {
+                  final Map<String, dynamic> map = {};
+                  (item as Map).forEach((key, value) {
+                    final stringKey = key.toString();
+                    map[stringKey] = value is int ? value.toDouble() : value;
+                  });
+                  return map;
+                }).toList();
+            data['strategies'] = strategies;
+          }
+          return data;
         }
-
-        return data;
+        return {'strategies': <StrategyMap>[]};
       } catch (e) {
-        print('전략 + 김치 트렌드 파싱 에러: $e');
+        print('전략 파싱 에러: $e');
       }
       return null;
     } else {
-      throw Exception(
-        "Failed to fetch strategy with kimchi trends: ${response.statusCode}",
-      );
+      throw Exception("Failed to fetch strategy: ${response.statusCode}");
     }
   }
 

@@ -20,7 +20,6 @@ class ChartOnlyPage extends StatefulWidget {
   final List<USDTChartData> usdtChartData;
   final double kimchiMin;
   final double kimchiMax;
-  final Map<DateTime, Map<String, double>>? premiumTrends; // 김치 프리미엄 트렌드 데이터
 
   // AI/김프 매매 체크박스 초기값을 받을 수 있도록 파라미터 추가
   final bool initialShowGimchiTrading;
@@ -43,7 +42,6 @@ class ChartOnlyPage extends StatefulWidget {
     required this.kimchiMin,
     required this.kimchiMax,
     required this.strategyList,
-    this.premiumTrends,
     this.initialShowGimchiTrading = false,
     this.hourlyGranularity = false,
   });
@@ -61,7 +59,6 @@ class ChartOnlyPage extends StatefulWidget {
        usdtChartData = model.usdtChartData,
        kimchiMin = model.kimchiMin,
        kimchiMax = model.kimchiMax,
-       premiumTrends = model.premiumTrends,
        super(key: key);
 
   @override
@@ -140,7 +137,6 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
         widget.exchangeRates,
         widget.strategyList,
         widget.usdtMap,
-        widget.premiumTrends,
         initialKRW: cap,
       );
     });
@@ -444,21 +440,12 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
       if (widget.exchangeRates.isNotEmpty && widget.usdtChartData.isNotEmpty) {
         final exchangeRateValue = widget.exchangeRates.last.value;
         if (exchangeRateValue > 0) {
-          final (
-            buyThreshold,
-            sellThreshold,
-          ) = SimulationModel.getKimchiThresholds(
-            trendData: null,
-            exchangeRates: widget.exchangeRates,
-            targetDate: widget.usdtChartData.last.time,
-          );
+          final (buyThreshold, sellThreshold) =
+              SimulationModel.getKimchiThresholds();
 
           markerExchangeRate = exchangeRateValue;
           final prices = SimulationModel.getKimchiTradingPrices(
             exchangeRateValue: exchangeRateValue,
-            premiumTrends: widget.premiumTrends,
-            targetDate: widget.usdtChartData.last.time,
-            exchangeRates: widget.exchangeRates,
           );
           final dAdj = KimchiFxDeltaStore.instance.deltaForFxWhenEnabled(
             exchangeRateValue,
@@ -482,7 +469,6 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
       final nextPoint = SimulationModel.getNextTradingPoint(
         exchangeRates: widget.exchangeRates,
         usdtChartData: widget.usdtChartData,
-        premiumTrends: widget.premiumTrends,
         currentPrice: widget.usdtChartData.safeLast?.close,
       );
 
@@ -964,7 +950,6 @@ class _ChartOnlyPageState extends State<ChartOnlyPage> {
                         widget.exchangeRates,
                         widget.strategyList,
                         widget.usdtMap,
-                        widget.premiumTrends,
                         initialKRW: cap,
                       );
                       setState(() {
@@ -1168,7 +1153,6 @@ class ChartOnlyPageModel {
   final List<USDTChartData> usdtChartData;
   final double kimchiMin;
   final double kimchiMax;
-  final Map<DateTime, Map<String, double>>? premiumTrends;
 
   ChartOnlyPageModel({
     required this.exchangeRates,
@@ -1178,6 +1162,5 @@ class ChartOnlyPageModel {
     required this.usdtChartData,
     required this.kimchiMin,
     required this.kimchiMax,
-    this.premiumTrends,
   });
 }

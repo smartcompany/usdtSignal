@@ -232,12 +232,6 @@ abstract class AppLocalizations {
   /// **'예'**
   String get yes;
 
-  /// No description provided for @useTrendBasedStrategy.
-  ///
-  /// In ko, this message translates to:
-  /// **'추세 기반 전략 사용'**
-  String get useTrendBasedStrategy;
-
   /// No description provided for @error.
   ///
   /// In ko, this message translates to:

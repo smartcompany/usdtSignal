@@ -82,9 +82,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get yes => 'Yes';
 
   @override
-  String get useTrendBasedStrategy => 'Use trend-based strategy';
-
-  @override
   String get error => 'Error';
 
   @override

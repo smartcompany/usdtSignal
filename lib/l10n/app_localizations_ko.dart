@@ -82,9 +82,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get yes => '예';
 
   @override
-  String get useTrendBasedStrategy => '추세 기반 전략 사용';
-
-  @override
   String get error => '에러';
 
   @override

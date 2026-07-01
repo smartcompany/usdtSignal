@@ -21,11 +21,7 @@ String? kimchiTradeRecommendLinesForTooltip({
   );
   if (prices.buyPrice <= 0 && prices.sellPrice <= 0) return null;
 
-  final (buyTh, sellTh) = SimulationModel.getKimchiThresholds(
-    trendData: null,
-    exchangeRates: null,
-    targetDate: null,
-  );
+  final (buyTh, sellTh) = SimulationModel.getKimchiThresholds();
   final d =
       KimchiFxDeltaStore.instance.deltaForFxWhenEnabled(exchangeRate) ?? 0.0;
   final buyPrem = buyTh - d;

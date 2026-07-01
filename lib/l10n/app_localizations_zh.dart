@@ -81,9 +81,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get yes => '是';
 
   @override
-  String get useTrendBasedStrategy => '使用基于趋势的策略';
-
-  @override
   String get error => '错误';
 
   @override

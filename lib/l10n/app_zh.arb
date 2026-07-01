@@ -38,7 +38,6 @@
   "permissionRequiredMessage": "要接收通知，需要在设备设置中允许通知权限。\n是否要前往设置？",
   "no": "否",
   "yes": "是",
-  "useTrendBasedStrategy": "使用基于趋势的策略",
   "error": "错误",
   "dash": "-",
   "kimchiStrategy": "韩元溢价策略",

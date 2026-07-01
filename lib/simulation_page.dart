@@ -236,7 +236,6 @@ class SimulationPage extends StatefulWidget {
   final Map<DateTime, USDTChartData> usdtMap;
   final List<StrategyMap> strategyList;
   final List<ChartData> usdExchangeRates;
-  final Map<DateTime, Map<String, double>>? premiumTrends; // 김치 프리미엄 트렌드 데이터
 
   // ChartOnlyPageModel을 직접 받는 생성자 추가
   final ChartOnlyPageModel? chartOnlyPageModel;
@@ -253,7 +252,6 @@ class SimulationPage extends StatefulWidget {
     required this.usdtMap,
     required this.strategyList,
     required this.usdExchangeRates,
-    this.premiumTrends,
     this.chartOnlyPageModel,
     this.settings,
     this.hourlyGranularity = false,
@@ -808,7 +806,6 @@ class _SimulationPageState extends State<SimulationPage>
         usdExchangeRates,
         strategyList,
         usdtMap,
-        widget.premiumTrends,
         initialKRW: initial,
         buyFee: buyFee,
         sellFee: sellFee,
@@ -939,16 +936,7 @@ class _SimulationPageState extends State<SimulationPage>
     }
     if (!context.mounted) return;
 
-    var (buyThreshold, sellThreshold) = (
-      SimulationCondition.instance.kimchiBuyThreshold,
-      SimulationCondition.instance.kimchiSellThreshold,
-    );
-
-    (buyThreshold, sellThreshold) = SimulationModel.getKimchiThresholds(
-      trendData: widget.premiumTrends?[date],
-      exchangeRates: widget.usdExchangeRates,
-      targetDate: date,
-    );
+    final (buyThreshold, sellThreshold) = SimulationModel.getKimchiThresholds();
 
     final fxForExplain =
         (usdKrwHint != null && usdKrwHint > 0)

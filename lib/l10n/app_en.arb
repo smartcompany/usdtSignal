@@ -38,7 +38,6 @@
   "permissionRequiredMessage": "To receive notifications, you need to allow notification permissions in device settings.\nWould you like to go to settings?",
   "no": "No",
   "yes": "Yes",
-  "useTrendBasedStrategy": "Use trend-based strategy",
   "error": "Error",
   "dash": "-",
   "kimchiStrategy": "K-Premium Strategy",

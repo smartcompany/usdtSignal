@@ -245,7 +245,6 @@ class _MyHomePageState extends State<MyHomePage>
   List<USDTChartData> usdtChartData = [];
   Map<DateTime, USDTChartData> usdtMap = {};
   List<StrategyMap> strategyList = [];
-  Map<DateTime, Map<String, double>>? premiumTrends; // 서버에서 받은 김치 프리미엄 트렌드 데이터
 
   AdsStatus _adsStatus = AdsStatus.unload; // 광고 상태 관리
   bool _showAdOverlay = true; // 광고 오버레이 표시 여부
@@ -951,7 +950,6 @@ class _MyHomePageState extends State<MyHomePage>
     usdtChartData: [...usdtChartData],
     kimchiMin: kimchiMin,
     kimchiMax: kimchiMax,
-    premiumTrends: premiumTrends,
   );
 
   void _applyHourlyMergedChartData(MergedHourlyChartData merged) {
@@ -999,7 +997,6 @@ class _MyHomePageState extends State<MyHomePage>
       exchangeRates,
       strategyList,
       usdtMap,
-      premiumTrends,
       initialKRW: simInitial,
       buyFee: buyFee,
       sellFee: sellFee,
@@ -1165,7 +1162,6 @@ class _MyHomePageState extends State<MyHomePage>
       exchangeRates,
       strategyList,
       usdtMap,
-      premiumTrends,
       initialKRW: simInitial,
       buyFee: buyFee,
       sellFee: sellFee,
@@ -1178,7 +1174,6 @@ class _MyHomePageState extends State<MyHomePage>
       usdtChartData: [...usdtChartData],
       kimchiMin: kimchiMin,
       kimchiMax: kimchiMax,
-      premiumTrends: premiumTrends,
     );
 
     if (!mounted) return;
@@ -1834,34 +1829,12 @@ class _MyHomePageState extends State<MyHomePage>
   Future<void> _loadStrategyInBackground() async {
     try {
       await KimchiFxDeltaStore.instance.ensureLoaded(ApiService.shared);
-      // 김치 프리미엄 트렌드와 함께 전략 데이터 가져오기
-      final response = await ApiService.shared.fetchStrategyWithKimchiTrends();
+      final response = await ApiService.shared.fetchStrategyPayload();
 
       if (mounted && response != null) {
         final newStrategyList = List<StrategyMap>.from(
           response['strategies'] ?? [],
         );
-        Map<DateTime, Map<String, double>>? nextPremiumTrends = premiumTrends;
-        if (response['kimchiTrends'] != null) {
-          print('서버에서 받은 김치 트렌드 데이터 개수: ${response['kimchiTrends'].length}');
-          nextPremiumTrends = <DateTime, Map<String, double>>{};
-          (response['kimchiTrends'] as Map).forEach((dateStr, trendData) {
-            try {
-              final date = DateTime.parse(dateStr.toString());
-              final Map<String, double> data = {};
-              (trendData as Map).forEach((key, value) {
-                final stringKey = key.toString();
-                if (value is num) {
-                  data[stringKey] = value.toDouble();
-                }
-              });
-              nextPremiumTrends![date] = data;
-            } catch (e) {
-              print('날짜 파싱 에러: $dateStr, $e');
-            }
-          });
-          print('변환된 premiumTrends 개수: ${nextPremiumTrends.length}');
-        }
 
         double? buyFee;
         double? sellFee;
@@ -1881,7 +1854,6 @@ class _MyHomePageState extends State<MyHomePage>
         if (_chartGranularity == MainChartGranularity.hourly) {
           setState(() {
             strategyList = newStrategyList;
-            premiumTrends = nextPremiumTrends;
           });
           await _recalculateHourlyGimchiYieldOnly();
           print('전략 데이터 로딩 완료 (시간 차트)');
@@ -1892,7 +1864,6 @@ class _MyHomePageState extends State<MyHomePage>
           exchangeRates,
           newStrategyList,
           usdtMap,
-          nextPremiumTrends,
           initialKRW: simInitialKrw,
           buyFee: buyFee,
           sellFee: sellFee,
@@ -1906,12 +1877,10 @@ class _MyHomePageState extends State<MyHomePage>
           usdtChartData: [...usdtChartData],
           kimchiMin: kimchiMin,
           kimchiMax: kimchiMax,
-          premiumTrends: nextPremiumTrends,
         );
 
         setState(() {
           strategyList = newStrategyList;
-          premiumTrends = nextPremiumTrends;
           gimchiYieldData = newGimchiYield;
           chartOnlyPageModel = newChartModel;
         });
@@ -2187,9 +2156,6 @@ class _MyHomePageState extends State<MyHomePage>
     final exchangeRateValue = exchangeRates.safeLast?.value ?? 0;
     final prices = SimulationModel.getKimchiTradingPrices(
       exchangeRateValue: exchangeRateValue,
-      premiumTrends: premiumTrends,
-      targetDate: todayUsdt?.time,
-      exchangeRates: exchangeRates,
     );
     buyPrice = prices.buyPrice;
     sellPrice = prices.sellPrice;
@@ -2579,7 +2545,6 @@ class _MyHomePageState extends State<MyHomePage>
     final nextPoint = SimulationModel.getNextTradingPoint(
       exchangeRates: exchangeRates,
       usdtChartData: usdtChartData,
-      premiumTrends: premiumTrends,
       currentPrice: usdtChartData.safeLast?.close,
     );
 
@@ -3193,7 +3158,6 @@ class _MyHomePageState extends State<MyHomePage>
                                   usdtMap: usdtMap,
                                   strategyList: strategyList,
                                   usdExchangeRates: exchangeRates,
-                                  premiumTrends: premiumTrends,
                                   chartOnlyPageModel: chartOnlyPageModel,
                                   settings: settings,
                                   hourlyGranularity:
@@ -3338,25 +3302,27 @@ class _MyHomePageState extends State<MyHomePage>
   Future<Widget> _buildGimchiStrategyTab() async {
     final exchangeRateValue = exchangeRates.safeLast?.value ?? 0;
 
-    // 이미 로드된 김치 프리미엄 트렌드 데이터 사용
-    final todayDate = exchangeRates.safeLast?.time;
-    final (buyThreshold, sellThreshold) = SimulationModel.getKimchiThresholds(
-      trendData: premiumTrends?[todayDate],
-      exchangeRates: exchangeRates,
-      targetDate: todayDate,
+    final (buyThreshold, sellThreshold) = SimulationModel.getKimchiThresholds();
+
+    final prices = SimulationModel.getKimchiTradingPrices(
+      exchangeRateValue: exchangeRateValue,
     );
+    final buyPrice = prices.buyPrice;
+    final sellPrice = prices.sellPrice;
 
-    final buyPrice = (exchangeRateValue * (1 + buyThreshold / 100));
-    final sellPrice = (exchangeRateValue * (1 + sellThreshold / 100));
-
-    final profitRate = sellThreshold - buyThreshold;
+    final d =
+        KimchiFxDeltaStore.instance.deltaForFxWhenEnabled(exchangeRateValue) ??
+        0.0;
+    final buyPrem = buyThreshold - d;
+    final sellPrem = sellThreshold - d;
+    final profitRate = sellPrem - buyPrem;
 
     final buyPriceStr = buyPrice.toStringAsFixed(1);
     final sellPriceStr = sellPrice.toStringAsFixed(1);
 
     final strategy =
-        'USDT가 $buyPriceStr(${buyThreshold.toStringAsFixed(1)}%) 이하일 때 ${l10n(context).buy}, '
-        '$sellPriceStr(${sellThreshold.toStringAsFixed(1)}%) 이상일 때 ${l10n(context).sell}';
+        'USDT가 $buyPriceStr(${buyPrem.toStringAsFixed(2)}%) 이하일 때 ${l10n(context).buy}, '
+        '$sellPriceStr(${sellPrem.toStringAsFixed(2)}%) 이상일 때 ${l10n(context).sell}';
     final profitRateStr = '+${profitRate.toStringAsFixed(1)}%';
 
     return makeStrategyTab(

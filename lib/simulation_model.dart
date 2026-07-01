@@ -69,24 +69,18 @@ class SimulationModel {
     return maxDd * 100;
   }
 
-  // 김치 프리미엄 추세, 환율 추세, USDT 추세를 고려해 김치 프리미엄 매매 전략을 생성하는 함수
-
-  static (double, double) getKimchiThresholds({
-    required Map<String, double>? trendData,
-    List<ChartData>? exchangeRates,
-    DateTime? targetDate,
-  }) {
-    final buyThreshold = SimulationCondition.instance.kimchiBuyThreshold;
-    final sellThreshold = SimulationCondition.instance.kimchiSellThreshold;
-    return (buyThreshold, sellThreshold);
+  static (double, double) getKimchiThresholds() {
+    return (
+      SimulationCondition.instance.kimchiBuyThreshold,
+      SimulationCondition.instance.kimchiSellThreshold,
+    );
   }
 
   // 김치 시뮬레이션 결과 계산
   static List<SimulationResult> gimchiSimulateResults(
     List<ChartData> usdExchangeRates,
     List<StrategyMap> strategyList,
-    Map<DateTime, USDTChartData> usdtMap,
-    Map<DateTime, Map<String, double>>? premiumTrends, {
+    Map<DateTime, USDTChartData> usdtMap, {
     double initialKRW = 1000000,
     double? buyFee,
     double? sellFee,
@@ -142,8 +136,6 @@ class SimulationModel {
     final fxBuyMax = SimulationCondition.instance.kimchiFxBuyMax;
     final fxSellMin = SimulationCondition.instance.kimchiFxSellMin;
 
-    // premiumTrends는 매개변수로 받은 서버 데이터 사용
-
     for (final date in sortedDates) {
       final usdtDay = usdtMap[date];
       final usdExchangeRate = usdExchangeRatesMap[date] ?? 0.0;
@@ -153,11 +145,7 @@ class SimulationModel {
       double buyTargetPrice = 0.0;
       double sellTargetPrice = 0.0;
 
-      final (buyThreshold, sellThreshold) = getKimchiThresholds(
-        trendData: premiumTrends?[date],
-        exchangeRates: usdExchangeRates,
-        targetDate: date,
-      );
+      final (buyThreshold, sellThreshold) = getKimchiThresholds();
 
       final d =
           KimchiFxDeltaStore.instance.deltaForFxWhenEnabled(usdExchangeRate)!;
@@ -430,8 +418,7 @@ class SimulationModel {
   static SimulationYieldData? getYieldForGimchiSimulation(
     List<ChartData> usdExchangeRates,
     List<StrategyMap> strategyList,
-    Map<DateTime, USDTChartData> usdtMap,
-    Map<DateTime, Map<String, double>>? premiumTrends, {
+    Map<DateTime, USDTChartData> usdtMap, {
     double initialKRW = 1000000,
     double? buyFee,
     double? sellFee,
@@ -441,7 +428,6 @@ class SimulationModel {
       usdExchangeRates,
       strategyList,
       usdtMap,
-      premiumTrends,
       initialKRW: initialKRW,
       buyFee: buyFee,
       sellFee: sellFee,
@@ -460,7 +446,6 @@ class SimulationModel {
   getNextTradingPoint({
     List<ChartData>? exchangeRates,
     List<USDTChartData>? usdtChartData,
-    Map<DateTime, Map<String, double>>? premiumTrends,
     double? currentPrice,
   }) {
     if (currentPrice == null || currentPrice == 0) {
@@ -500,12 +485,7 @@ class SimulationModel {
         // 오늘 날짜 (targetDate로 사용)
         final todayUsdtTime = usdtChartData.last.time;
 
-        // 김치 프리미엄 임계값 가져오기 (추세 기반 전략 제거)
-        final (buyThreshold, sellThreshold) = getKimchiThresholds(
-          trendData: null,
-          exchangeRates: exchangeRates,
-          targetDate: todayUsdtTime,
-        );
+        final (buyThreshold, sellThreshold) = getKimchiThresholds();
 
         final dAdj =
             KimchiFxDeltaStore.instance.deltaForFxWhenEnabled(exchangeRateValue)!;
@@ -544,16 +524,8 @@ class SimulationModel {
   // 김치 프리미엄 매수/매도 가격 계산 (main.dart의 _buildTodayComment와 동일한 로직)
   static ({double buyPrice, double sellPrice}) getKimchiTradingPrices({
     required double exchangeRateValue,
-    Map<DateTime, Map<String, double>>? premiumTrends,
-    DateTime? targetDate,
-    List<ChartData>? exchangeRates,
   }) {
-    // 추세 기반 전략 제거 - 항상 기본 임계값 사용
-    final (buyThreshold, sellThreshold) = getKimchiThresholds(
-      trendData: null,
-      exchangeRates: exchangeRates,
-      targetDate: targetDate,
-    );
+    final (buyThreshold, sellThreshold) = getKimchiThresholds();
 
     if (SimulationCondition.instance.kimchiFxDeltaCorrectionEnabled &&
         KimchiFxDeltaStore.instance.effectivePayload == null) {
@@ -571,20 +543,12 @@ class SimulationModel {
 
   static double _getKimchiBuyPrice({
     List<ChartData>? exchangeRates,
-    List<USDTChartData>? usdtChartData,
-    Map<DateTime, Map<String, double>>? premiumTrends,
-    DateTime? targetDate,
   }) {
     if (exchangeRates == null || exchangeRates.isEmpty) return 0;
     final exchangeRateValue = exchangeRates.last.value;
     if (exchangeRateValue == 0) return 0;
 
-    // 추세 기반 전략 제거 - 항상 기본 임계값 사용
-    final (buyThreshold, _) = getKimchiThresholds(
-      trendData: null,
-      exchangeRates: exchangeRates,
-      targetDate: targetDate,
-    );
+    final (buyThreshold, _) = getKimchiThresholds();
     if (SimulationCondition.instance.kimchiFxDeltaCorrectionEnabled &&
         KimchiFxDeltaStore.instance.effectivePayload == null) {
       return 0;
@@ -595,20 +559,12 @@ class SimulationModel {
 
   static double _getKimchiSellPrice({
     List<ChartData>? exchangeRates,
-    List<USDTChartData>? usdtChartData,
-    Map<DateTime, Map<String, double>>? premiumTrends,
-    DateTime? targetDate,
   }) {
     if (exchangeRates == null || exchangeRates.isEmpty) return 0;
     final exchangeRateValue = exchangeRates.last.value;
     if (exchangeRateValue == 0) return 0;
 
-    // 추세 기반 전략 제거 - 항상 기본 임계값 사용
-    final (_, sellThreshold) = getKimchiThresholds(
-      trendData: null,
-      exchangeRates: exchangeRates,
-      targetDate: targetDate,
-    );
+    final (_, sellThreshold) = getKimchiThresholds();
     if (SimulationCondition.instance.kimchiFxDeltaCorrectionEnabled &&
         KimchiFxDeltaStore.instance.effectivePayload == null) {
       return 0;
